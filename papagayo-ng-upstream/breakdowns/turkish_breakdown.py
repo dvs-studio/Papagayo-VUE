@@ -175,11 +175,11 @@ def breakdown_word(word, recursive=False):
 
 if __name__ == "__main__":
     testwords = ['merhaba', 'Iyi', 'geceler', 'allaha',
-                 'ismarladik', 'güle', 'evet', 'hayir',
-                 'lütfen', 'anlamiyorum', 'afiyet', 'olsun',
+                 'ismarladik', 'gï¿½le', 'evet', 'hayir',
+                 'lï¿½tfen', 'anlamiyorum', 'afiyet', 'olsun',
                  'saatler', 'elinize', 'ithal', 'Mithat', 'meshut',
-                 'cem', 'Ahmet', 'rehber', 'müphem', 'ithal',
-                 'på', 'hänsyn'
+                 'cem', 'Ahmet', 'rehber', 'mï¿½phem', 'ithal',
+                 'pï¿½', 'hï¿½nsyn'
                  ]
     for eachword in testwords:
         print(eachword, ':', breakdown_word(eachword), '--', breakdown_word(eachword))

@@ -154,7 +154,7 @@ def breakdown_word(word, recursive=False):
             elif previous == 't':
                 phonemes.append('Y')
             elif previous == 'n':
-                pass  # close enough to just n, although more like Spanish ñ
+                pass  # close enough to just n, although more like Spanish ï¿½
             else:
                 phonemes.append('IY0')
         elif letter == 'z':
@@ -201,21 +201,21 @@ def breakdown_word(word, recursive=False):
 
 
 if __name__ == "__main__":
-    testwords = ['szabadon', 'ferenc', 'fricsay', 'szöllösy', 'kodály',
-                 'székely', 'fonó', 'györgy', 'cziffra',
-                 'csárdás', 'kocsis', 'jános', 'masony', 'solti',
+    testwords = ['szabadon', 'ferenc', 'fricsay', 'szï¿½llï¿½sy', 'kodï¿½ly',
+                 'szï¿½kely', 'fonï¿½', 'gyï¿½rgy', 'cziffra',
+                 'csï¿½rdï¿½s', 'kocsis', 'jï¿½nos', 'masony', 'solti',
                  'szell', 'szigeti', 'miklos', 'rozsa',
-                 'szar', 'száe', 'veréb', 'véreb', 'csikós', 'csíkos',
-                 'kor', 'kór', 'tok', 'tök', 'út', 'üt',
-                 'kocka', 'leér', 'csap', 'cukor', 'ökör',
-                 'magyarázni', 'tér',
-                 'hat', 'hát', 'kell', 'kék',
-                 'iroda', 'irógép', 'hol', 'hó',
-                 'öt',
+                 'szar', 'szï¿½e', 'verï¿½b', 'vï¿½reb', 'csikï¿½s', 'csï¿½kos',
+                 'kor', 'kï¿½r', 'tok', 'tï¿½k', 'ï¿½t', 'ï¿½t',
+                 'kocka', 'leï¿½r', 'csap', 'cukor', 'ï¿½kï¿½r',
+                 'magyarï¿½zni', 'tï¿½r',
+                 'hat', 'hï¿½t', 'kell', 'kï¿½k',
+                 'iroda', 'irï¿½gï¿½p', 'hol', 'hï¿½',
+                 'ï¿½t',
                  # u'\N{LATIN SMALL LETTER O WITH DOUBLE ACUTE}t',
-                 'unalmas', 'úszni', 'ürügy',
-                 # u'\N{LATIN SMALL LETTER O WITH DOUBLE ACUTE}rhajó',
-                 'på', 'hänsyn'
+                 'unalmas', 'ï¿½szni', 'ï¿½rï¿½gy',
+                 # u'\N{LATIN SMALL LETTER O WITH DOUBLE ACUTE}rhajï¿½',
+                 'pï¿½', 'hï¿½nsyn'
 
                  ]
     for eachword in testwords:

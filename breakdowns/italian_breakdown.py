@@ -77,7 +77,7 @@ def breakdown_word(word, recursive=False):
             phonemes.append('AA0')
         elif letter == 'c':
             if previous == 's':
-                # ['e', 'i', 'é', 'í', 'è', 'ì', 'ê', 'î']
+                # ['e', 'i', 'ï¿½', 'ï¿½', 'ï¿½', 'ï¿½', 'ï¿½', 'ï¿½']
                 if len(word) > pos + 1 and word[pos + 1] in ['e', 'i', u'\N{LATIN SMALL LETTER E WITH ACUTE}',
                                                              u'\N{LATIN SMALL LETTER I WITH ACUTE}',
                                                              u'\N{LATIN SMALL LETTER E WITH GRAVE}',
@@ -147,7 +147,7 @@ def breakdown_word(word, recursive=False):
                 phonemes.append('IY0')
         elif letter == 'l':
             if previous == 'g':
-                # ['e', 'i', 'é', 'í', 'è', 'ì', 'ê', 'î']
+                # ['e', 'i', 'ï¿½', 'ï¿½', 'ï¿½', 'ï¿½', 'ï¿½', 'ï¿½']
                 if len(word) > pos + 1 and word[pos + 1] in ['e', 'i', u'\N{LATIN SMALL LETTER E WITH ACUTE}',
                                                              u'\N{LATIN SMALL LETTER I WITH ACUTE}',
                                                              u'\N{LATIN SMALL LETTER E WITH GRAVE}',
@@ -231,11 +231,11 @@ def breakdown_word(word, recursive=False):
 
 
 if __name__ == "__main__":
-    testwords = ['gli', 'pietà', 'guarda',
+    testwords = ['gli', 'pietï¿½', 'guarda',
                  'casa', 'padre', 'grande', 'tanto',
                  'busta', 'Berlinguer', 'Bertinotti', 'bambola', 'bambino',
                  'cinque', 'cenci', 'focassia', 'ciao', 'fece',
-                 'ricavare', 'cavolo', 'come', 'facoltà', 'culto',
+                 'ricavare', 'cavolo', 'come', 'facoltï¿½', 'culto',
                  'domenica', 'andare', 'commanda', 'diavolo',
                  'mettere', 'meteorologica', 'mele', 'finire',
                  'finto', 'raffinato', 'Ruffino', 'fondametale',
@@ -245,7 +245,7 @@ if __name__ == "__main__":
                  'gnocchi', 'vigna', 'cigno', 'castagna', 'stagnare',
                  'hai', 'ghenga', 'abbachio', 'chiasso', 'ghiera',
                  'timone', 'partire', 'Primo', 'spaghetti', 'fili',
-                 'lungo', 'Fillungo', 'falò', 'lui', 'lei',
+                 'lungo', 'Fillungo', 'falï¿½', 'lui', 'lei',
                  'milione', 'mamma', 'Sambuca', 'Mussolini', 'militare',
                  'nano', 'nonno', 'mano', 'autunno', 'mondo', 'monte',
                  'potere', 'posta', 'appoggiare', 'aprodere', 'colto',
@@ -259,8 +259,8 @@ if __name__ == "__main__":
                  'zabaglione', 'zero', 'zoologica', 'mazzo', 'nozzi', 'ragazza',
                  'tutta', 'tuta',
                  'Giovanni', 'Giuseppe', 'Gianna',
-                 'cioè', 'città', 'ramarro',
-                 'på', 'hänsyn'
+                 'cioï¿½', 'cittï¿½', 'ramarro',
+                 'pï¿½', 'hï¿½nsyn'
                  ]
     for word in testwords:
         print(word, breakdown_word(word))

@@ -89,10 +89,10 @@ def breakdown_word(word, recursive=False):
         't': 'T',
         'f': 'F',
         'x': 'HH',  # use 'Y' ?? 'K'??
-        u'\N{LATIN SMALL LETTER S WITH CARON}': 'SH',  # š
-        u'\N{LATIN SMALL LETTER Z WITH CARON}': 'ZH',  # ž
-        u'\N{LATIN CAPITAL LETTER S WITH CARON}': 'SH',  # Š
-        u'\N{LATIN CAPITAL LETTER Z WITH CARON}': 'ZH',  # Ž
+        u'\N{LATIN SMALL LETTER S WITH CARON}': 'SH',  # ï¿½
+        u'\N{LATIN SMALL LETTER Z WITH CARON}': 'ZH',  # ï¿½
+        u'\N{LATIN CAPITAL LETTER S WITH CARON}': 'SH',  # ï¿½
+        u'\N{LATIN CAPITAL LETTER Z WITH CARON}': 'ZH',  # ï¿½
         # Cyrillic
         u'\N{CYRILLIC SMALL LETTER A}': 'AA0',
         u'\N{CYRILLIC SMALL LETTER BE}': 'B',
@@ -256,7 +256,7 @@ def breakdown_word(word, recursive=False):
 
 
 if __name__ == "__main__":
-    testwords = "på hänsyn Vsi ljudy narodžujut'sja vil'nymy i rivnymy u svojij hidnosti ta pravax. Vony nadileni rozumom i sovistju i povynni dijaty u vidnošenni odyn do odnoho v dusi braterstva.".split()
+    testwords = "pï¿½ hï¿½nsyn Vsi ljudy narodï¿½ujut'sja vil'nymy i rivnymy u svojij hidnosti ta pravax. Vony nadileni rozumom i sovistju i povynni dijaty u vidnoï¿½enni odyn do odnoho v dusi braterstva.".split()
     testwordsC = u"\N{CYRILLIC CAPITAL LETTER VE}"
     u"\N{CYRILLIC SMALL LETTER ES}"
     u"\N{CYRILLIC SMALL LETTER IE}"

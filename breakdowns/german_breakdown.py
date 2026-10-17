@@ -39,7 +39,7 @@ input_encoding = locale.getdefaultlocale()[1]  # standard system encoding??
 
 def breakdown_word(word, recursive=False):
     word = word.lower()
-    isvowel = dict.fromkeys('aeiouäöü')
+    isvowel = dict.fromkeys('aeiouï¿½ï¿½ï¿½')
     phonemes = []
     simple_convert = {
         'f': 'F',
@@ -78,7 +78,7 @@ def breakdown_word(word, recursive=False):
             else:
                 phonemes.append('AA0')
         elif letter == u'\N{LATIN SMALL LETTER A WITH DIAERESIS}':
-            if len(word) > pos + 1 and word[pos + 1] == 'u':  # äu
+            if len(word) > pos + 1 and word[pos + 1] == 'u':  # ï¿½u
                 phonemes.append('OY0')
             elif len(word) > pos + 2 and word[pos + 1] == word[pos + 2] and word[pos + 1] not in isvowel:
                 phonemes.append('EH0')
@@ -236,13 +236,13 @@ def breakdown_word(word, recursive=False):
 if __name__ == "__main__":
     testwords = ['stift', 'korken', 'insel',
                  'auto', 'noch', 'fein', 'sie', 'neun', 'quittung', 'es',
-                 'sprechen', 'muß', 'gut', 'von', 'wir', 'hätte',
-                 'läutet', 'können', 'grün',
+                 'sprechen', 'muï¿½', 'gut', 'von', 'wir', 'hï¿½tte',
+                 'lï¿½utet', 'kï¿½nnen', 'grï¿½n',
                  'das', 'vater', 'wenn', 'weg', 'bitte', 'in', 'wider',
                  'rose', 'unter', 'hypnose', 'typisch', 'mayer',
-                 'hässlich', 'käse', 'mögen', 'fünf', 'über',
+                 'hï¿½sslich', 'kï¿½se', 'mï¿½gen', 'fï¿½nf', 'ï¿½ber',
                  'saal', 'see', 'boot', 'bad', 'kredit', 'motto',
-                 'meñe', 'på', 'hänsyn'
+                 'meï¿½e', 'pï¿½', 'hï¿½nsyn'
                  ]
     for word in testwords:
         print(word, breakdown_word(word))

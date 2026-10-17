@@ -38,7 +38,7 @@ import string
 # aggiungere qui tutte le vocali con stress=0
 # a e o u
 # aggiungere qui tutte le lettere accentate con lo stress=1
-# à é è ò ù
+# ï¿½ ï¿½ ï¿½ ï¿½ ï¿½
 # aggiungere qui le consonanti che non modificano formulazione
 # b d f k m n p q s t v w x y z
 # @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
@@ -72,12 +72,12 @@ unconditional_conversions = {
 
 # @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
 # aggiungere qui tutte le combinazioni che modificano la formulazione di base (vedi sopra)
-# lettera "c": COno - CIlindro - CHIesa - CAsa - CUrato - CEna - perCIÒ - calCIO - vaCAnza - perCHÉ
+# lettera "c": COno - CIlindro - CHIesa - CAsa - CUrato - CEna - perCIï¿½ - calCIO - vaCAnza - perCHï¿½
 # lettera "g": GIOco - GAstro - fiGLIo - GLArona - GHIaccio - GIUrato - GLObale
 # lettera "h": HO - HAi - CHE - CHIuso - anCHE
 # lettera "j": Jelmorini - BanJo
 # lettera "l": fiGLIo
-# lettera "i,ì,í": per combinazioni con "c", "g", "l"
+# lettera "i,ï¿½,ï¿½": per combinazioni con "c", "g", "l"
 # @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
 # breaks down a word into phonemes
 def breakdown_word(input_word, recursive=False):
@@ -117,7 +117,7 @@ def breakdown_word(input_word, recursive=False):
             else:
                 breakdown_word.append('EH0')
         elif letter == u'\N{LATIN SMALL LETTER I WITH ACUTE}':
-            # cí, #gí
+            # cï¿½, #gï¿½
             if previous == u'c' or previous == u'g':
                 previous = letter
                 word_index += 1
@@ -125,7 +125,7 @@ def breakdown_word(input_word, recursive=False):
             else:
                 breakdown_word.append('EH1')
         elif letter == u'\N{LATIN SMALL LETTER I WITH GRAVE}':
-            # cì, #gì
+            # cï¿½, #gï¿½
             if previous == u'c' or previous == u'g':
                 previous = letter
                 word_index += 1
@@ -178,6 +178,6 @@ if __name__ == '__main__':
                   'COno', 'CIlindro', 'CHIesa', 'CAsa', 'CUrato', 'CEna', 'calCIO', 'vaCAnza',
                   'GIOco', 'GAstro', 'GiGLIo', 'GLArona', 'GHIaccio', 'GIUrato', 'GLObale',
                   'HO', 'HAi', 'CHE', 'CHIuso', 'anCHE', 'BanJo', 'marGIne',
-                  'RAdio', 'ROnco', 'RUbino', 'REsto', 'ramaRRo', 'cROsta', 'på', 'hänsyn']
+                  'RAdio', 'ROnco', 'RUbino', 'REsto', 'ramaRRo', 'cROsta', 'pï¿½', 'hï¿½nsyn']
     for word in test_words:
         print(word, " --> ", breakdown_word(word))

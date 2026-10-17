@@ -1,3 +1,0 @@
-# github: [steveway, morevnaproject]
-patreon: steveway
-custom: https://gumroad.com/l/papagayo-ng

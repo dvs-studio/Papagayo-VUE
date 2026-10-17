@@ -120,9 +120,9 @@ def breakdown_word(word, recursive=False):
             else:
                 phonemes.append('D')
         elif letter == 'g':
-            if len(word) > pos + 1 and word[pos + 1] == 'j':  # gjær
+            if len(word) > pos + 1 and word[pos + 1] == 'j':  # gjï¿½r
                 pass  # handled as a normal j
-            elif len(word) == pos + 1 and previous == 'i':  # ærlig
+            elif len(word) == pos + 1 and previous == 'i':  # ï¿½rlig
                 pass  # silent at end of word
             elif previous == 'n':
                 pass  # handled under n
@@ -149,13 +149,13 @@ def breakdown_word(word, recursive=False):
         elif letter == 'k':
             if previous == 's' and len(word) > pos + 1 and word[pos + 1] in [u'j', u'i', u'y',
                                                                              u'\N{LATIN SMALL LETTER O WITH STROKE}']:
-                phonemes.append('SH')  # sjkære, ski, skøyter
+                phonemes.append('SH')  # sjkï¿½re, ski, skï¿½yter
             elif previous == 's':
                 phonemes.append('S')
                 phonemes.append('K')
             elif len(word) > pos + 1 and word[pos + 1] in [u'i', u'y']:  # kirke, kyss
                 phonemes.append('HH')
-            elif len(word) > pos + 1 and word[pos + 1] == 'j':  # kjønn
+            elif len(word) > pos + 1 and word[pos + 1] == 'j':  # kjï¿½nn
                 phonemes.append('HH')
             else:
                 phonemes.append('K')  # kaffe
@@ -177,7 +177,7 @@ def breakdown_word(word, recursive=False):
                 phonemes.append('SH')  # Eastern Norway - norsk, person, for sent
             elif len(word) > pos + 1 and word[pos + 1] == 'k':
                 pass  # handled under k
-            elif len(word) > pos + 1 and word[pos + 1] == 'j':  # sjø
+            elif len(word) > pos + 1 and word[pos + 1] == 'j':  # sjï¿½
                 phonemes.append('SH')
             elif len(word) > pos + 1 and word[pos + 1] == 'l':
                 phonemes.append('SH')  # informal usage
@@ -211,13 +211,13 @@ def breakdown_word(word, recursive=False):
 
 if __name__ == "__main__":
     testwords = ['natt', 'rar', 'hai', 'tau', 'by', 'du', 'menn', 'lettes', 'tre', 'nei', 'fire',
-                 'gal', 'hatt', 'titt', 'bi', 'ja', 'kaffe', 'kjønn', 'lys', 'min', 'ni', 'fang', 'godt',
-                 'to', 'koie', 'purre', 'råd', 'syv', 'sjø', 'tusen', 'gutt', 'ku', 'uimotståelig',
-                 'vits', 'mygg', 'ny', 'lærd', 'tær', 'trøtt', 'kø', 'gøy', 'grått', 'båt',
-                 'hjem', 'rom', 'hver', 'kirke', 'kyss', 'gjær', 'ljug', 'gi', 'begynne', 'geit',
-                 'kart', 'ærlig', 'barn', 'skjære', 'ski', 'skøyter', 'norsk', 'person', 'forsent',
-                 'slå', 'Oslo', 'jord', 'god', 'holde', 'land', 'huset', 'sølv',
-                 'êtres', 'français', 'égaux'
+                 'gal', 'hatt', 'titt', 'bi', 'ja', 'kaffe', 'kjï¿½nn', 'lys', 'min', 'ni', 'fang', 'godt',
+                 'to', 'koie', 'purre', 'rï¿½d', 'syv', 'sjï¿½', 'tusen', 'gutt', 'ku', 'uimotstï¿½elig',
+                 'vits', 'mygg', 'ny', 'lï¿½rd', 'tï¿½r', 'trï¿½tt', 'kï¿½', 'gï¿½y', 'grï¿½tt', 'bï¿½t',
+                 'hjem', 'rom', 'hver', 'kirke', 'kyss', 'gjï¿½r', 'ljug', 'gi', 'begynne', 'geit',
+                 'kart', 'ï¿½rlig', 'barn', 'skjï¿½re', 'ski', 'skï¿½yter', 'norsk', 'person', 'forsent',
+                 'slï¿½', 'Oslo', 'jord', 'god', 'holde', 'land', 'huset', 'sï¿½lv',
+                 'ï¿½tres', 'franï¿½ais', 'ï¿½gaux'
                  ]
     for eachword in testwords:
         print(eachword, ':', breakdown_word(eachword), '--', breakdown_word(eachword))

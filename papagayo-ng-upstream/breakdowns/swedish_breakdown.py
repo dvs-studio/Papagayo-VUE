@@ -71,18 +71,18 @@ def prefixen(word):
         u"be": ["B", "EH0"],
         u"er": ["AE0", "R"],
         u"efter": ["EH0", "F", "T", "AE0", "R"],
-        u'f\N{LATIN SMALL LETTER O WITH DIAERESIS}re': ["F", "ER0", "R", "EH0"],  # före
-        u'f\N{LATIN SMALL LETTER O WITH DIAERESIS}r': ["F", "ER0", "R"],  # "för"
+        u'f\N{LATIN SMALL LETTER O WITH DIAERESIS}re': ["F", "ER0", "R", "EH0"],  # fï¿½re
+        u'f\N{LATIN SMALL LETTER O WITH DIAERESIS}r': ["F", "ER0", "R"],  # "fï¿½r"
         u"fram": ["F", "R", "AH0", "M"],
         u"fr\N{LATIN SMALL LETTER A WITH RING ABOVE}": ["F", "R", "AO0", "N"],
         u"ill": ["IY0", "L"],
         # u"miss": ["M IY0 S"],
-        u'p\N{LATIN SMALL LETTER A WITH RING ABOVE}': ["P", "AO0"],  # "på"
+        u'p\N{LATIN SMALL LETTER A WITH RING ABOVE}': ["P", "AO0"],  # "pï¿½"
         u"re": ["R", "EH0"],
         u"upp": ["UW0", "P"],
         u"ut": ["UW0", "T"],
-        u'\N{LATIN SMALL LETTER A WITH RING ABOVE}ter': ["AO0", "T", "AE0", "R"],  # "åter"
-        u'\N{LATIN SMALL LETTER O WITH DIAERESIS}ver': ["ER0", "V", "AE0", "R"],  # "över"
+        u'\N{LATIN SMALL LETTER A WITH RING ABOVE}ter': ["AO0", "T", "AE0", "R"],  # "ï¿½ter"
+        u'\N{LATIN SMALL LETTER O WITH DIAERESIS}ver': ["ER0", "V", "AE0", "R"],  # "ï¿½ver"
         u"ad": ["AH0", "D"],
         u"dis": ["D", "IY0", "S"],
         u"fri": ["F", "R", "IY0"],
@@ -106,11 +106,11 @@ def prefixen(word):
     #prefixes.sort()
     for each_prefix in prefixes:
         if len(word) >= len(each_prefix) + 2 and word.startswith(each_prefix):
-            # if each_prefix[-1] in ['a', 'e', 'i', 'o', 'u', 'j', 'ÿ', ý']:
+            # if each_prefix[-1] in ['a', 'e', 'i', 'o', 'u', 'j', 'ï¿½', ï¿½']:
             word = word[len(each_prefix):]
             prefix = prefix_pronunciation[each_prefix]
             break
-    # "hän" but not "häng"
+    # "hï¿½n" but not "hï¿½ng"
     if not prefix:
         if len(word) >= 5 and word.startswith(u'h\N{LATIN SMALL LETTER A WITH DIAERESIS}n') and not word.startswith(
                 u'h\N{LATIN SMALL LETTER A WITH DIAERESIS}ng'):
@@ -242,9 +242,9 @@ def breakdownSwedishSyllable(word, recursive=False, phonetic=False):
                                                                         u'\N{LATIN SMALL LETTER A WITH DIAERESIS}',
                                                                         u'\N{LATIN SMALL LETTER O WITH DIAERESIS}']:
                 phonemes.append('CH')
-            elif word == 'människa':
+            elif word == 'mï¿½nniska':
                 phonemes.append('SH')
-            elif word == 'människor':
+            elif word == 'mï¿½nniskor':
                 phonemes.append('SH')
             elif len(word) == pos + 1 and previous == 's':  # ends in SK
                 phonemes.append('S')
@@ -445,52 +445,52 @@ def breakdownSwedishWordPhonetic(word):
 
 
 if __name__ == "__main__":
-    testwords = ['hänsyn', 'hänseende', 'hängiva',
-                 'friktioner', 'friktion', 'er', 'som', 'dom', 'musikalisk', 'missionär', 'kurage', 'övergav',
+    testwords = ['hï¿½nsyn', 'hï¿½nseende', 'hï¿½ngiva',
+                 'friktioner', 'friktion', 'er', 'som', 'dom', 'musikalisk', 'missionï¿½r', 'kurage', 'ï¿½vergav',
                  'inkomma', 'bank', 'mission',
-                 'kom', 'min', 'pojke', 'så', 'går', 'vi', 'bort', 'till', 'mormor', 'och', 'snor', 'hennes', 'plånbok',
+                 'kom', 'min', 'pojke', 'sï¿½', 'gï¿½r', 'vi', 'bort', 'till', 'mormor', 'och', 'snor', 'hennes', 'plï¿½nbok',
                  'ur', 'kommoden',
-                 'kåm', 'min', 'påjke', 'så', 'går', 'vi', 'bårt', 'till', 'mormor', 'och', 'snor', 'hennes', 'plånbok',
-                 'ur', 'kåmmoden',
-                 'verkligt', 'fräscha', 'färger', 'på', 'tapeterna', 'här',
-                 'värkligt', 'frescha', 'färgär', 'på', 'tapetärna', 'här',
-                 'sjutton', 'Svenska', 'tala', 'glas', 'bröd', 'cafe', 'cykel',
-                 'dag', 'heta', 'nej', 'fredag', 'gata', 'gå', 'gissa',
-                 'höst', 'huvudvärk', 'kniv', 'springa', 'timme',
-                 'ja', 'kaffe', 'kärlek', 'lördag', 'måndag', 'natt',
+                 'kï¿½m', 'min', 'pï¿½jke', 'sï¿½', 'gï¿½r', 'vi', 'bï¿½rt', 'till', 'mormor', 'och', 'snor', 'hennes', 'plï¿½nbok',
+                 'ur', 'kï¿½mmoden',
+                 'verkligt', 'frï¿½scha', 'fï¿½rger', 'pï¿½', 'tapeterna', 'hï¿½r',
+                 'vï¿½rkligt', 'frescha', 'fï¿½rgï¿½r', 'pï¿½', 'tapetï¿½rna', 'hï¿½r',
+                 'sjutton', 'Svenska', 'tala', 'glas', 'brï¿½d', 'cafe', 'cykel',
+                 'dag', 'heta', 'nej', 'fredag', 'gata', 'gï¿½', 'gissa',
+                 'hï¿½st', 'huvudvï¿½rk', 'kniv', 'springa', 'timme',
+                 'ja', 'kaffe', 'kï¿½rlek', 'lï¿½rdag', 'mï¿½ndag', 'natt',
                  'stol', 'moln', 'kopp', 'ost', 'pris', 'ringa',
-                 'sommar', 'te', 'ut', 'under', 'vår', 'vinter',
-                 'till exempel', 'dyr', 'mycket', 'zoo', 'språk',
-                 'ålder', 'bära', 'vän', 'röd', 'köra', 'sönder',
-                 'gäst', 'gjorde', 'hjälpa', 'ljus', 'check',
+                 'sommar', 'te', 'ut', 'under', 'vï¿½r', 'vinter',
+                 'till exempel', 'dyr', 'mycket', 'zoo', 'sprï¿½k',
+                 'ï¿½lder', 'bï¿½ra', 'vï¿½n', 'rï¿½d', 'kï¿½ra', 'sï¿½nder',
+                 'gï¿½st', 'gjorde', 'hjï¿½lpa', 'ljus', 'check',
                  'kilo', 'kjol', 'tjugo', 'chock', 'garage', 'mars',
                  'schampoo', 'sju', 'skinn', 'skjorta', 'stjarna',
-                 'många', 'regn', 'bank',
+                 'mï¿½nga', 'regn', 'bank',
                  'sherry', 'shah', 'ta', 'katt', 'ko',
-                 'hon', 'hus', 'brunn', 'båt', 'sång', 'se', 'fett',
-                 'fil', 'in', 'sy', 'sytt', 'träd', 'lätt', 'söt',
-                 'röst',
-                 'häckklippning', 'askkopp', 'sakkunnig', 'rockkrage', 'ekkärl',
-                 'snabbkylning', 'kråkbär', 'piller',
-                 'djur', 'vädja', 'djonk',
-                 'gevär', 'nagel',
+                 'hon', 'hus', 'brunn', 'bï¿½t', 'sï¿½ng', 'se', 'fett',
+                 'fil', 'in', 'sy', 'sytt', 'trï¿½d', 'lï¿½tt', 'sï¿½t',
+                 'rï¿½st',
+                 'hï¿½ckklippning', 'askkopp', 'sakkunnig', 'rockkrage', 'ekkï¿½rl',
+                 'snabbkylning', 'krï¿½kbï¿½r', 'piller',
+                 'djur', 'vï¿½dja', 'djonk',
+                 'gevï¿½r', 'nagel',
                  'vagn', 'piggna',
                  "kurage",
                  'och', 'idka',
-                 'kälke', 'angå', 'skol', 'idé',
-                 'motion', 'berättar', 'glädje', 'rasism', 'gråta', 'falla', 'hammare',
+                 'kï¿½lke', 'angï¿½', 'skol', 'idï¿½',
+                 'motion', 'berï¿½ttar', 'glï¿½dje', 'rasism', 'grï¿½ta', 'falla', 'hammare',
                  'prinsessa', 'chockera',
-                 'människa', 'människor',
+                 'mï¿½nniska', 'mï¿½nniskor',
                  'kefir', 'kex', 'kille', 'kis', 'kissa', 'kisse',
                  'yago', 'yoghurt', 'fyrtio',
                  'mage', 'krage', 'hage', 'stege', 'jour', 'projekt', 'champagne',
                  "komik", "komisk", "komiker",
                  'biokemi', 'biogeografi'
                  # fake words to test 100% code coverage
-                            'intel', 'ants', 'sampan', 'eccles', 'gnocci', 'regiön', 'region', 'luge', 'quick',
+                            'intel', 'ants', 'sampan', 'eccles', 'gnocci', 'regiï¿½n', 'region', 'luge', 'quick',
                  'queasy',
-                 'nerfon', 'binfor', 'överland', 'återland', 'efterland', 'éèêïòóõ', 'bistjon',
-                 'meñe', 'êtres', 'français', 'égaux'
+                 'nerfon', 'binfor', 'ï¿½verland', 'ï¿½terland', 'efterland', 'ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½', 'bistjon',
+                 'meï¿½e', 'ï¿½tres', 'franï¿½ais', 'ï¿½gaux'
                  ]
     for eachword in testwords:
         print(eachword, ':', breakdown_word(eachword), '--', breakdownSwedishWordPhonetic(eachword))

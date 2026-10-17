@@ -74,8 +74,8 @@ def prefixen(word):
         'aan': ['AA0', 'N'],
         'af': ['AH0', 'F'],
         'bij': ['B', 'AY0'],
-        u'b\N{LATIN SMALL LETTER Y WITH ACUTE}': ['B', 'AY0'],  # bý
-        u'b\N{LATIN SMALL LETTER Y WITH DIAERESIS}': ['B', 'AY0'],  # bÿ
+        u'b\N{LATIN SMALL LETTER Y WITH ACUTE}': ['B', 'AY0'],  # bï¿½
+        u'b\N{LATIN SMALL LETTER Y WITH DIAERESIS}': ['B', 'AY0'],  # bï¿½
         'hard': ['HH', 'AH0', 'R', 'D'],
         'los': ['L', 'AO0', 'S'],
         'mee': ['M', 'EY0'],
@@ -92,7 +92,7 @@ def prefixen(word):
     }
     for each_prefix in prefix_pronunciation.keys():
         if len(word) > len(each_prefix) + 2 and word.startswith(each_prefix):
-            # if each_prefix[-1] in ['a', 'e', 'i', 'o', 'u', 'j', 'ÿ', ý']:
+            # if each_prefix[-1] in ['a', 'e', 'i', 'o', 'u', 'j', 'ï¿½', ï¿½']:
             word = word[len(each_prefix):]
             prefix = prefix_pronunciation[each_prefix]
             break
@@ -128,7 +128,7 @@ def breakdown_word(word):
 
 def getSyllableCount(word):
     isvowel = dict.fromkeys('aeiou')
-    istrema = dict.fromkeys('äëïöü')
+    istrema = dict.fromkeys('ï¿½ï¿½ï¿½ï¿½ï¿½')
     previous_letter = ' '
     syllable_count = 0
     vowel_count = 0
@@ -149,7 +149,7 @@ def getSyllableCount(word):
 def wordToSyllables(word):
     word = word.lower()
     isvowel = dict.fromkeys('aeiou')
-    istrema = dict.fromkeys('äëïöü')
+    istrema = dict.fromkeys('ï¿½ï¿½ï¿½ï¿½ï¿½')
     syllable_count = getSyllableCount(word)
     syllables = [[]]
     previous_letter = ' '
@@ -358,17 +358,17 @@ def syllablesToPhonemes(syllables, recursive=False):
                 else:
                     phonemes.append('ER0')  # - not accurate but the nearest phoneme in CMU? (use AH instead?)
             # ------------ TREMA (looks like German Umlaut, but different meaning) -------------------------------
-            elif letter == u'\N{LATIN SMALL LETTER A WITH DIAERESIS}':  # ä
+            elif letter == u'\N{LATIN SMALL LETTER A WITH DIAERESIS}':  # ï¿½
                 phonemes.append('AH0')  # like English short u (cut, hut)
-            elif letter == u'\N{LATIN SMALL LETTER E WITH DIAERESIS}':  # ë
+            elif letter == u'\N{LATIN SMALL LETTER E WITH DIAERESIS}':  # ï¿½
                 phonemes.append('EH0')  # closer to a (bad B AH D) than English short EH0 (bed = B EH D)
-            elif letter == u'\N{LATIN SMALL LETTER I WITH DIAERESIS}':  # ï
+            elif letter == u'\N{LATIN SMALL LETTER I WITH DIAERESIS}':  # ï¿½
                 phonemes.append('IH0')
-            elif letter == u'\N{LATIN SMALL LETTER O WITH DIAERESIS}':  # ö
+            elif letter == u'\N{LATIN SMALL LETTER O WITH DIAERESIS}':  # ï¿½
                 phonemes.append('AO0')
-            elif letter == u'\N{LATIN SMALL LETTER U WITH DIAERESIS}':  # ü
+            elif letter == u'\N{LATIN SMALL LETTER U WITH DIAERESIS}':  # ï¿½
                 phonemes.append('ER0')  # - not accurate but the nearest phoneme in CMU? (use AH instead?)
-            elif letter == u'\N{LATIN SMALL LETTER Y WITH DIAERESIS}' or letter == u'\N{LATIN SMALL LETTER Y WITH ACUTE}':  # 'ÿ' or 'ý'
+            elif letter == u'\N{LATIN SMALL LETTER Y WITH DIAERESIS}' or letter == u'\N{LATIN SMALL LETTER Y WITH ACUTE}':  # 'ï¿½' or 'ï¿½'
                 # LATIN SMALL LETTER Y WITH DIAERESIS
                 # LATIN SMALL LETTER Y WITH ACUTE
                 phonemes.append("AY0")
@@ -398,7 +398,7 @@ if __name__ == "__main__":
                  'graag', 'gemeen', 'goed', 'ja', 'niet', 'jager', 'juist', 'regen', 'riool', 'raam', 'bad', 'gat',
                  'tassen',
                  'gaas', 'maand', 'varen', 'met', 'heg', 'meer', 'deeg', 'eten', 'gaten', 'muren',
-                 'boot', 'boten', 'ogen', 'muur', 'fuut', 'duren', 'mooi', 'ce', 'ci', 'hec', 'på', 'hänsyn']
+                 'boot', 'boten', 'ogen', 'muur', 'fuut', 'duren', 'mooi', 'ce', 'ci', 'hec', 'pï¿½', 'hï¿½nsyn']
     for word in testwords:
         #print(word, wordToSyllables(word), syllablesToPhonemes(wordToSyllables(word)), breakdown_word(word))
         print(word, wordToSyllables(word), breakdown_word(word))
