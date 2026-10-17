@@ -1,45 +1,38 @@
-name: Sync Full Papagayo-NG Upstream
+name: Verify and Fill Missing Papagayo-NG Files
 
 on:
-  push:
-    branches:
-      - main
-    paths-ignore:
-      - "papagayo-ng-upstream/**"
-      - "assets/**"
-      - ".github/workflows/sync-full-upstream.yml"
-
   workflow_dispatch:
 
 permissions:
   contents: write
 
 concurrency:
-  group: sync-full-papagayo-ng-upstream
+  group: papagayo-ng-gap-fill
   cancel-in-progress: false
 
 jobs:
-  full-sync:
+  verify-and-fill:
+    name: Verify Upstream and Fill Missing Files
     runs-on: ubuntu-latest
 
     steps:
-      # 1. Check out your own repository's main branch.
+      # 1. Check out your existing fork.
       - name: Checkout Papagayo-VUE Fork
         uses: actions/checkout@v4
         with:
-          ref: main
+          ref: master
           fetch-depth: 1
           persist-credentials: true
 
-      # 2. Install rsync for reliable directory synchronization.
-      - name: Install Synchronization Tools
+      # 2. Install synchronization utilities.
+      - name: Install Required Tools
         run: |
           set -euo pipefail
           sudo apt-get update
           sudo apt-get install -y rsync
 
-      # 3. Clone the official Morevna Project repository.
-      - name: Clone Official Papagayo-NG Upstream
+      # 3. Clone the official upstream repository.
+      - name: Clone Official Morevna Papagayo-NG
         run: |
           set -euo pipefail
 
@@ -49,98 +42,71 @@ jobs:
             https://github.com/morevnaproject-org/papagayo-ng.git \
             upstream-papagayo-ng
 
-          echo "Successfully cloned the official Morevna Project repository."
-          echo "Upstream repository:"
-          git -C upstream-papagayo-ng remote -v
-
+          echo "Official upstream repository verified."
           echo "Upstream commit:"
           git -C upstream-papagayo-ng log -1 --oneline
 
-          echo "Upstream top-level files:"
-          ls -la upstream-papagayo-ng | head -40
-
-      # 4. Mirror the complete upstream source tree.
-      #    The upstream .git directory is never copied.
-      - name: Mirror Complete Upstream Source
+      # 4. Verify which files are missing from the full mirror.
+      - name: Check Full Upstream Mirror for Missing Files
+        id: mirror_check
         run: |
           set -euo pipefail
 
           mkdir -p papagayo-ng-upstream
 
-          rsync -a --delete \
+          rsync -a \
+            --ignore-existing \
             --exclude='.git/' \
             upstream-papagayo-ng/ \
             papagayo-ng-upstream/
 
-          echo "Complete upstream source mirrored to:"
-          echo "papagayo-ng-upstream/"
+          echo "Missing upstream files copied into papagayo-ng-upstream/."
 
-      # 5. Update curated resources without deleting unrelated custom assets.
-      - name: Synchronize Curated Application Assets
+      # 5. Fill gaps in curated assets without replacing existing files.
+      - name: Fill Missing Curated Assets
         run: |
           set -euo pipefail
 
           mkdir -p \
             assets/breakdowns/languages \
-            assets/breakdowns/upstream-breakdowns \
+            assets/rsrc \
             assets/rsrc/mouths \
             assets/export_templates \
             assets/samples
 
-          # A. Breakdown scripts and related upstream files.
+          # Copy missing breakdown resources.
           if [ -d upstream-papagayo-ng/breakdowns ]; then
             rsync -a \
+              --ignore-existing \
               upstream-papagayo-ng/breakdowns/ \
-              assets/breakdowns/upstream-breakdowns/
-
-            find upstream-papagayo-ng/breakdowns \
-              -maxdepth 1 \
-              -type f \
-              \( -name '*_breakdown.py' \
-                 -o -name 'unicode_hammer.py' \
-                 -o -name '__init__.py' \) \
-              -exec cp -v -t assets/breakdowns/languages/ {} +
+              assets/breakdowns/
           fi
 
-          # B. Language resources.
+          # Copy missing language resources.
           if [ -d upstream-papagayo-ng/rsrc/languages ]; then
             rsync -a \
+              --ignore-existing \
               upstream-papagayo-ng/rsrc/languages/ \
               assets/breakdowns/languages/
           fi
 
-          # C. Dictionaries.
-          find upstream-papagayo-ng \
-            -type f \
-            \( -name 'cmudict.0.7a' \
-               -o -name 'standard_dictionary' \
-               -o -name 'cmudict*' \) \
-            -exec cp -v -t assets/breakdowns/ {} + \
-            2>/dev/null || true
-
-          # D. Mouth shapes.
-          if [ -d upstream-papagayo-ng/rsrc/mouths ]; then
-            rsync -a \
-              upstream-papagayo-ng/rsrc/mouths/ \
-              assets/rsrc/mouths/
-          fi
-
-          # E. Other upstream resources, excluding mouths already copied.
+          # Copy missing resource files.
           if [ -d upstream-papagayo-ng/rsrc ]; then
             rsync -a \
-              --exclude='mouths/' \
+              --ignore-existing \
               upstream-papagayo-ng/rsrc/ \
               assets/rsrc/
           fi
 
-          # F. Export scripts and templates.
+          # Copy missing export templates.
           if [ -d upstream-papagayo-ng/export ]; then
             rsync -a \
+              --ignore-existing \
               upstream-papagayo-ng/export/ \
               assets/export_templates/
           fi
 
-          # G. Discover additional exporter-related source files.
+          # Discover additional export-related files.
           find upstream-papagayo-ng \
             -type f \
             \( -iname '*export*' \
@@ -156,44 +122,52 @@ jobs:
                -o -name '*.template' \) \
             -print0 |
           while IFS= read -r -d '' file; do
-            destination="assets/export_templates/$file"
-            mkdir -p "$(dirname "$destination")"
-            cp -n "$file" "$destination" 2>/dev/null || true
+            relative="${file#upstream-papagayo-ng/}"
+            destination="assets/export_templates/$relative"
+
+            if [ ! -e "$destination" ]; then
+              mkdir -p "$(dirname "$destination")"
+              cp "$file" "$destination"
+              echo "Added missing export resource: $destination"
+            fi
           done
 
-          # H. Collect audio samples and Papagayo project files.
+          # Copy missing audio samples and Papagayo project files.
           find upstream-papagayo-ng \
             -type f \
             \( -name '*.wav' -o -name '*.pgo' \) \
             -print0 |
           while IFS= read -r -d '' file; do
-            cp -n "$file" assets/samples/ 2>/dev/null || true
+            filename="$(basename "$file")"
+            destination="assets/samples/$filename"
+
+            if [ ! -e "$destination" ]; then
+              cp "$file" "$destination"
+              echo "Added missing sample: $destination"
+            fi
           done
 
-          echo "Curated upstream assets synchronized."
+          echo "Missing curated resources copied where available."
 
-      # 6. Report the synchronization summary.
-      - name: Verify Synchronized Files
+      # 6. Report what is present and what was added.
+      - name: Verify Final Files
         run: |
           set -euo pipefail
 
           echo "======================================"
-          echo "UPSTREAM SOURCE SUMMARY"
+          echo "FULL UPSTREAM MIRROR"
           echo "======================================"
 
           find papagayo-ng-upstream \
-            -maxdepth 1 \
-            -mindepth 1 \
-            -printf '%f\n' |
-            sort
+            -type f | sort | head -200
 
           echo "======================================"
-          echo "CURATED ASSET SUMMARY"
+          echo "CURATED ASSET COUNTS"
           echo "======================================"
 
           for directory in \
             assets/breakdowns \
-            assets/rsrc/mouths \
+            assets/rsrc \
             assets/export_templates \
             assets/samples; do
 
@@ -203,8 +177,8 @@ jobs:
             fi
           done
 
-      # 7. Commit and push the synchronized files to your fork's main branch.
-      - name: Commit and Push to Main
+      # 7. Commit only newly added files.
+      - name: Commit Missing Files
         run: |
           set -euo pipefail
 
@@ -217,13 +191,13 @@ jobs:
             assets/
 
           if git diff --cached --quiet; then
-            echo "No changes detected. Repository is already synchronized."
+            echo "No missing files were found. Nothing to commit."
             exit 0
           fi
 
           git commit -m \
-            "Sync Papagayo-NG upstream and refresh curated assets"
+            "Fill missing Papagayo-NG upstream files and assets"
 
-          git push origin HEAD:main
+          git push origin HEAD:master
 
-          echo "Synchronization completed successfully."
+          echo "Gap-filling synchronization completed successfully."
