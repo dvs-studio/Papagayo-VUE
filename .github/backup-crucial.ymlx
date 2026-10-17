@@ -1,0 +1,119 @@
+name: Backup Crucial Files (No Multimedia)
+
+on:
+  workflow_dispatch:
+    inputs:
+      note:
+        description: "Optional note for this backup (e.g. handoff reason)"
+        required: false
+        default: "Manual crucial-files backup"
+
+permissions:
+  contents: write
+
+jobs:
+  backup:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Create crucial-files-only zip
+        run: |
+          set -euo pipefail
+
+          TIMESTAMP=$(date -u +"%Y%m%d-%H%M%S")
+          ZIP_NAME="papagayo-crucial-backup-${TIMESTAMP}.zip"
+          echo "Creating $ZIP_NAME ..."
+
+          # Crucial paths only – code, configs, documentation, agent files
+          # Explicitly EXCLUDE multimedia (wav, mp3, png, jpg, gif, mp4, etc.)
+          # and large binary / cache directories
+
+          mkdir -p /tmp/crucial-staging
+
+          # Core project files & docs
+          for f in \
+            RULES.md STATUS.md AGENTIC.md CHANGELOG.md CONVERSATIONS.md \
+            implementation_plan.md AGENT_API.md \
+            GOOGLE_AI_STUDIO_INTRO_PROMPT.md \
+            PAPAGAYO_NG_MODERNIZATION_CONTEXT.txt \
+            README.md LICENSE pyproject.toml setup.py requirements.txt \
+            .gitignore; do
+            if [ -f "$f" ]; then
+              cp -v "$f" /tmp/crucial-staging/
+            fi
+          done
+
+          # Source code (Python, etc.) – exclude common media & cache dirs
+          if [ -d "src" ] || [ -d "papagayo" ] || [ -d "app" ]; then
+            rsync -a \
+              --exclude='*.wav' --exclude='*.mp3' --exclude='*.ogg' \
+              --exclude='*.png' --exclude='*.jpg' --exclude='*.jpeg' \
+              --exclude='*.gif' --exclude='*.mp4' --exclude='*.mov' \
+              --exclude='*.webm' --exclude='*.avi' --exclude='*.psd' \
+              --exclude='__pycache__' --exclude='*.pyc' --exclude='.git' \
+              --exclude='node_modules' --exclude='dist' --exclude='build' \
+              --exclude='*.egg-info' \
+              src/ papagayo/ app/ /tmp/crucial-staging/ 2>/dev/null || true
+          fi
+
+          # Include entire agents/ folder (handoff notes)
+          if [ -d "agents" ]; then
+            cp -a agents /tmp/crucial-staging/
+          fi
+
+          # Include .github/workflows (the automation itself)
+          if [ -d ".github" ]; then
+            mkdir -p /tmp/crucial-staging/.github
+            cp -a .github/workflows /tmp/crucial-staging/.github/ 2>/dev/null || true
+          fi
+
+          # Upstream mirror metadata only (no heavy assets)
+          if [ -d "papagayo-ng-upstream" ]; then
+            mkdir -p /tmp/crucial-staging/papagayo-ng-upstream
+            # Keep only text / config / code from upstream, skip media
+            find papagayo-ng-upstream -type f \
+              \( -name '*.py' -o -name '*.md' -o -name '*.txt' -o -name '*.json' \
+                 -o -name '*.yml' -o -name '*.yaml' -o -name '*.toml' \
+                 -o -name '*.cfg' -o -name '*.ini' -o -name 'LICENSE*' \
+                 -o -name 'README*' -o -name '*.dat' -o -name '*.pgo' \) \
+              -exec cp --parents {} /tmp/crucial-staging/ \; 2>/dev/null || true
+          fi
+
+          # Assets that are pure data (dictionaries, not images)
+          if [ -d "assets/breakdowns" ]; then
+            mkdir -p /tmp/crucial-staging/assets
+            rsync -a \
+              --exclude='*.png' --exclude='*.jpg' --exclude='*.gif' \
+              --exclude='*.wav' --exclude='*.mp3' \
+              assets/breakdowns /tmp/crucial-staging/assets/ 2>/dev/null || true
+          fi
+
+          cd /tmp/crucial-staging
+          zip -r "/tmp/${ZIP_NAME}" . -x "*.git*"
+          echo "Zip created: $(du -h /tmp/${ZIP_NAME})"
+
+          # Move to workspace so the upload step can find it
+          mv "/tmp/${ZIP_NAME}" "${GITHUB_WORKSPACE}/${ZIP_NAME}"
+          echo "ZIP_NAME=${ZIP_NAME}" >> $GITHUB_ENV
+
+      - name: Upload backup artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: crucial-backup
+          path: ${{ env.ZIP_NAME }}
+          retention-days: 30
+
+      - name: Commit backup note (optional)
+        run: |
+          echo "Backup created: ${{ env.ZIP_NAME }}" > last-crucial-backup.txt
+          echo "Note: ${{ github.event.inputs.note }}" >> last-crucial-backup.txt
+          echo "Timestamp (UTC): $(date -u)" >> last-crucial-backup.txt
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add last-crucial-backup.txt || true
+          git diff --cached --quiet || git commit -m "Record crucial-files backup: ${{ env.ZIP_NAME }}"
+          git push origin HEAD:main || true
