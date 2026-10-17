@@ -2,116 +2,228 @@ name: Sync Full Papagayo-NG Upstream
 
 on:
   push:
-    branches: ["main"]
+    branches:
+      - main
+    paths-ignore:
+      - "papagayo-ng-upstream/**"
+      - "assets/**"
+      - ".github/workflows/sync-full-upstream.yml"
+
   workflow_dispatch:
 
 permissions:
   contents: write
+
+concurrency:
+  group: sync-full-papagayo-ng-upstream
+  cancel-in-progress: false
 
 jobs:
   full-sync:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout Papagayo-VUE
+      # 1. Check out your own repository's main branch.
+      - name: Checkout Papagayo-VUE Fork
         uses: actions/checkout@v4
         with:
           ref: main
+          fetch-depth: 1
+          persist-credentials: true
 
-      - name: Clone Full Upstream Repository
+      # 2. Install rsync for reliable directory synchronization.
+      - name: Install Synchronization Tools
         run: |
           set -euo pipefail
-          # Full shallow clone of everything
-          git clone --depth 1 \
+          sudo apt-get update
+          sudo apt-get install -y rsync
+
+      # 3. Clone the official Morevna Project repository.
+      - name: Clone Official Papagayo-NG Upstream
+        run: |
+          set -euo pipefail
+
+          git clone \
+            --depth 1 \
+            --branch master \
             https://github.com/morevnaproject-org/papagayo-ng.git \
             upstream-papagayo-ng
 
-          echo "Upstream tree:"
-          find upstream-papagayo-ng -maxdepth 2 -type d | head -40
+          echo "Successfully cloned the official Morevna Project repository."
+          echo "Upstream repository:"
+          git -C upstream-papagayo-ng remote -v
 
-      - name: Mirror Entire Upstream Tree
+          echo "Upstream commit:"
+          git -C upstream-papagayo-ng log -1 --oneline
+
+          echo "Upstream top-level files:"
+          ls -la upstream-papagayo-ng | head -40
+
+      # 4. Mirror the complete upstream source tree.
+      #    The upstream .git directory is never copied.
+      - name: Mirror Complete Upstream Source
         run: |
           set -euo pipefail
 
-          # Primary: full recursive mirror of the entire papagayo-ng repository
-          # into a stable location that can be used for modernization work.
-          rm -rf papagayo-ng-upstream
           mkdir -p papagayo-ng-upstream
-          cp -a upstream-papagayo-ng/. papagayo-ng-upstream/
 
-          # Also keep a convenient curated assets/ tree for the modern suite
-          # (dictionaries, mouths, exporters, samples) so existing code paths
-          # continue to work while we modernize.
-          mkdir -p assets/breakdowns/languages
-          mkdir -p assets/rsrc/mouths
-          mkdir -p assets/export_templates
-          mkdir -p assets/samples
+          rsync -a --delete \
+            --exclude='.git/' \
+            upstream-papagayo-ng/ \
+            papagayo-ng-upstream/
 
-          # 1. Breakdown scripts + dictionaries
-          if [ -d upstream-papagayo-ng/breakdowns ]; then
-            find upstream-papagayo-ng/breakdowns -maxdepth 1 -type f \
-              \( -name '*_breakdown.py' -o -name 'unicode_hammer.py' -o -name '__init__.py' \) \
-              -exec cp -v {} assets/breakdowns/languages/ \;
-            cp -a upstream-papagayo-ng/breakdowns/. assets/breakdowns/
-          fi
+          echo "Complete upstream source mirrored to:"
+          echo "papagayo-ng-upstream/"
 
-          if [ -d upstream-papagayo-ng/rsrc/languages ]; then
-            cp -a upstream-papagayo-ng/rsrc/languages/. assets/breakdowns/languages/
-            find upstream-papagayo-ng -type f \
-              \( -name 'cmudict.0.7a' -o -name 'standard_dictionary' -o -name 'cmudict*' \) \
-              -exec cp -v {} assets/breakdowns/ \; || true
-          fi
-
-          # 2. Mouth shape sets
-          if [ -d upstream-papagayo-ng/rsrc/mouths ]; then
-            cp -a upstream-papagayo-ng/rsrc/mouths/. assets/rsrc/mouths/
-          fi
-
-          # Broader rsrc mirror (excluding mouths already copied)
-          mkdir -p assets/rsrc
-          if [ -d upstream-papagayo-ng/rsrc ]; then
-            rsync -a --exclude='mouths' upstream-papagayo-ng/rsrc/ assets/rsrc/ || \
-              cp -a upstream-papagayo-ng/rsrc/. assets/rsrc/
-          fi
-
-          # 3. Export scripts / templates
-          if [ -d upstream-papagayo-ng/export ]; then
-            cp -a upstream-papagayo-ng/export/. assets/export_templates/
-          fi
-
-          find upstream-papagayo-ng -type f \( \
-              -iname '*export*' -o -iname '*synfig*' -o -iname '*opentoons*' \
-              -o -iname '*blender*' -o -iname '*moho*' \
-            \) \( -name '*.py' -o -name '*.js' -o -name '*.lua' \
-                 -o -name '*.xml' -o -name '*.json' -o -name '*.template' \) \
-            -exec cp -v --parents {} assets/export_templates/ \; 2>/dev/null || true
-
-          # 4. Samples
-          find upstream-papagayo-ng -type f \( -name '*.wav' -o -name '*.pgo' \) \
-            -exec cp -v {} assets/samples/ \; 2>/dev/null || true
-
-          if [ -d upstream-papagayo-ng/test ]; then
-            find upstream-papagayo-ng/test -type f \( -name '*.wav' -o -name '*.pgo' \) \
-              -exec cp -v {} assets/samples/ \; 2>/dev/null || true
-          fi
-
-          echo "Full upstream mirrored to papagayo-ng-upstream/"
-          echo "Curated assets also updated under assets/"
-          echo "---- papagayo-ng-upstream top-level ----"
-          ls -la papagayo-ng-upstream/ | head -30
-          echo "---- assets tree ----"
-          find assets -type d | head -40
-
-      - name: Commit and Push Changes
+      # 5. Update curated resources without deleting unrelated custom assets.
+      - name: Synchronize Curated Application Assets
         run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          set -euo pipefail
 
-          git add papagayo-ng-upstream/ assets/ || true
+          mkdir -p \
+            assets/breakdowns/languages \
+            assets/breakdowns/upstream-breakdowns \
+            assets/rsrc/mouths \
+            assets/export_templates \
+            assets/samples
+
+          # A. Breakdown scripts and related upstream files.
+          if [ -d upstream-papagayo-ng/breakdowns ]; then
+            rsync -a \
+              upstream-papagayo-ng/breakdowns/ \
+              assets/breakdowns/upstream-breakdowns/
+
+            find upstream-papagayo-ng/breakdowns \
+              -maxdepth 1 \
+              -type f \
+              \( -name '*_breakdown.py' \
+                 -o -name 'unicode_hammer.py' \
+                 -o -name '__init__.py' \) \
+              -exec cp -v -t assets/breakdowns/languages/ {} +
+          fi
+
+          # B. Language resources.
+          if [ -d upstream-papagayo-ng/rsrc/languages ]; then
+            rsync -a \
+              upstream-papagayo-ng/rsrc/languages/ \
+              assets/breakdowns/languages/
+          fi
+
+          # C. Dictionaries.
+          find upstream-papagayo-ng \
+            -type f \
+            \( -name 'cmudict.0.7a' \
+               -o -name 'standard_dictionary' \
+               -o -name 'cmudict*' \) \
+            -exec cp -v -t assets/breakdowns/ {} + \
+            2>/dev/null || true
+
+          # D. Mouth shapes.
+          if [ -d upstream-papagayo-ng/rsrc/mouths ]; then
+            rsync -a \
+              upstream-papagayo-ng/rsrc/mouths/ \
+              assets/rsrc/mouths/
+          fi
+
+          # E. Other upstream resources, excluding mouths already copied.
+          if [ -d upstream-papagayo-ng/rsrc ]; then
+            rsync -a \
+              --exclude='mouths/' \
+              upstream-papagayo-ng/rsrc/ \
+              assets/rsrc/
+          fi
+
+          # F. Export scripts and templates.
+          if [ -d upstream-papagayo-ng/export ]; then
+            rsync -a \
+              upstream-papagayo-ng/export/ \
+              assets/export_templates/
+          fi
+
+          # G. Discover additional exporter-related source files.
+          find upstream-papagayo-ng \
+            -type f \
+            \( -iname '*export*' \
+               -o -iname '*synfig*' \
+               -o -iname '*opentoons*' \
+               -o -iname '*blender*' \
+               -o -iname '*moho*' \) \
+            \( -name '*.py' \
+               -o -name '*.js' \
+               -o -name '*.lua' \
+               -o -name '*.xml' \
+               -o -name '*.json' \
+               -o -name '*.template' \) \
+            -print0 |
+          while IFS= read -r -d '' file; do
+            destination="assets/export_templates/$file"
+            mkdir -p "$(dirname "$destination")"
+            cp -n "$file" "$destination" 2>/dev/null || true
+          done
+
+          # H. Collect audio samples and Papagayo project files.
+          find upstream-papagayo-ng \
+            -type f \
+            \( -name '*.wav' -o -name '*.pgo' \) \
+            -print0 |
+          while IFS= read -r -d '' file; do
+            cp -n "$file" assets/samples/ 2>/dev/null || true
+          done
+
+          echo "Curated upstream assets synchronized."
+
+      # 6. Report the synchronization summary.
+      - name: Verify Synchronized Files
+        run: |
+          set -euo pipefail
+
+          echo "======================================"
+          echo "UPSTREAM SOURCE SUMMARY"
+          echo "======================================"
+
+          find papagayo-ng-upstream \
+            -maxdepth 1 \
+            -mindepth 1 \
+            -printf '%f\n' |
+            sort
+
+          echo "======================================"
+          echo "CURATED ASSET SUMMARY"
+          echo "======================================"
+
+          for directory in \
+            assets/breakdowns \
+            assets/rsrc/mouths \
+            assets/export_templates \
+            assets/samples; do
+
+            if [ -d "$directory" ]; then
+              printf '%s: ' "$directory"
+              find "$directory" -type f | wc -l
+            fi
+          done
+
+      # 7. Commit and push the synchronized files to your fork's main branch.
+      - name: Commit and Push to Main
+        run: |
+          set -euo pipefail
+
+          git config user.name "github-actions[bot]"
+          git config user.email \
+            "41898282+github-actions[bot]@users.noreply.github.com"
+
+          git add -A -- \
+            papagayo-ng-upstream/ \
+            assets/
 
           if git diff --cached --quiet; then
-            echo "No changes found to sync."
-          else
-            git commit -m "Full sync of papagayo-ng upstream + curated assets (CMU dict, mouths, exporters, breakdowns)"
-            git push origin HEAD:main
+            echo "No changes detected. Repository is already synchronized."
+            exit 0
           fi
+
+          git commit -m \
+            "Sync Papagayo-NG upstream and refresh curated assets"
+
+          git push origin HEAD:main
+
+          echo "Synchronization completed successfully."
