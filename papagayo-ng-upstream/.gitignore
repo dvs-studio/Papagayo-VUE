@@ -1,0 +1,14 @@
+*.pyc
+papagayo_glade.py
+temp.wav
+ffmpeg.exe
+.idea/
+settings.json
+
+venv/
+/build/linux-appimage/build
+/build/linux-appimage/*.AppImage
+/dist/
+/.github/
+/output/
+.DS_Store
