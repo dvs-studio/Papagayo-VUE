@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
     inputs:
       entry_file:
-        description: "Python desktop application's entry file (e.g. main.py)"
+        description: "Python application entry file, e.g. main.py"
         required: false
         default: ""
         type: string
@@ -27,31 +27,37 @@ jobs:
         with:
           python-version: "3.12"
 
-      - name: Install dependencies
+      - name: Install Python dependencies
         shell: pwsh
         run: |
           python -m pip install --upgrade pip
+
           if (Test-Path "requirements.txt") {
             python -m pip install -r requirements.txt
+            if ($LASTEXITCODE -ne 0) {
+              throw "Failed to install project dependencies."
+            }
           } else {
-            Write-Host "No requirements.txt found; skipping dependency installation."
+            Write-Host "No requirements.txt found."
           }
 
-      - name: Install build tools
-        run: python -m pip install pyinstaller
+      - name: Install PyInstaller
+        shell: pwsh
+        run: |
+          python -m pip install pyinstaller
+          if ($LASTEXITCODE -ne 0) {
+            throw "Failed to install PyInstaller."
+          }
 
-      - name: Find Python entry point
+      - name: Detect application entry point
         id: entry
         shell: pwsh
         env:
           REQUESTED_ENTRY: ${{ inputs.entry_file }}
         run: |
-          if ($env:REQUESTED_ENTRY -ne "") {
-            if (-not (Test-Path $env:REQUESTED_ENTRY)) {
-              throw "Specified entry file not found: $env:REQUESTED_ENTRY"
-            }
-            $entry = $env:REQUESTED_ENTRY
-          } else {
+          $entry = $env:REQUESTED_ENTRY
+
+          if ([string]::IsNullOrWhiteSpace($entry)) {
             $candidates = @(
               "main.py",
               "app.py",
@@ -61,57 +67,125 @@ jobs:
               "src/app.py"
             )
 
-            $entry = $null
             foreach ($candidate in $candidates) {
               if (Test-Path $candidate) {
                 $entry = $candidate
                 break
               }
             }
+          }
 
-            if (-not $entry) {
-              throw "Could not identify the Python entry point. Rerun the workflow and enter its path in the entry_file field."
-            }
+          if ([string]::IsNullOrWhiteSpace($entry)) {
+            throw "Python entry point not found. Rerun the workflow and enter the correct file path in entry_file."
+          }
+
+          if (-not (Test-Path $entry -PathType Leaf)) {
+            throw "Entry point does not exist: $entry"
           }
 
           "path=$entry" >> $env:GITHUB_OUTPUT
-          Write-Host "Using entry point: $entry"
+          Write-Host "Application entry point: $entry"
 
       - name: Check Python syntax
         shell: pwsh
         run: |
           $files = Get-ChildItem -Path . -Filter "*.py" -Recurse |
             Where-Object {
-              $_.FullName -notmatch '\\(\.git|\.venv|venv|build|dist|__pycache__)\\'
+              $_.FullName -notmatch '[\\/](.git|.venv|venv|build|dist|__pycache__)[\\/]'
             }
 
           if (-not $files) {
-            throw "No Python files found."
+            throw "No Python files were found."
           }
 
           foreach ($file in $files) {
             python -m py_compile $file.FullName
+
             if ($LASTEXITCODE -ne 0) {
               throw "Python syntax check failed: $($file.FullName)"
             }
           }
+
+          Write-Host "Python syntax checks completed."
 
       - name: Build Windows executable
         shell: pwsh
         env:
           ENTRY_FILE: ${{ steps.entry.outputs.path }}
         run: |
-          pyinstaller `
-            --noconfirm `
-            --clean `
-            --windowed `
-            --name "Papagayo-VUE" `
-            --onedir `
-            $env:ENTRY_FILE
+          python -m PyInstaller --noconfirm --clean --windowed --name "Papagayo-VUE" --onedir "$env:ENTRY_FILE"
 
           if ($LASTEXITCODE -ne 0) {
-            throw "PyInstaller failed."
+            throw "PyInstaller failed to build the application."
           }
 
-          if (-not (Test-Path "dist/Papagayo-VUE/Papagayo-VUE.exe")) {
-            throw "Expected executable
+          $exe = "dist/Papagayo-VUE/Papagayo-VUE.exe"
+
+          if (-not (Test-Path $exe)) {
+            throw "Expected executable was not created: $exe"
+          }
+
+          Write-Host "Executable created successfully: $exe"
+
+      - name: Include application resources
+        shell: pwsh
+        run: |
+          $target = "dist/Papagayo-VUE"
+
+          $resourceFolders = @(
+            "assets",
+            "static",
+            "templates",
+            "web",
+            "frontend"
+          )
+
+          foreach ($folder in $resourceFolders) {
+            if (Test-Path $folder -PathType Container) {
+              Copy-Item -Path $folder -Destination $target -Recurse -Force
+              Write-Host "Included resource folder: $folder"
+            }
+          }
+
+          $resourceFiles = @(
+            "README.md",
+            "LICENSE"
+          )
+
+          foreach ($file in $resourceFiles) {
+            if (Test-Path $file -PathType Leaf) {
+              Copy-Item -Path $file -Destination $target -Force
+            }
+          }
+
+      - name: Create Windows ZIP package
+        shell: pwsh
+        run: |
+          $appFolder = "dist/Papagayo-VUE"
+          $zipFile = "dist/Papagayo-VUE-Windows.zip"
+
+          if (-not (Test-Path "$appFolder/Papagayo-VUE.exe")) {
+            throw "Cannot package the application because its executable is missing."
+          }
+
+          Compress-Archive -Path $appFolder -DestinationPath $zipFile -Force
+
+          if (-not (Test-Path $zipFile)) {
+            throw "Failed to create the Windows ZIP package."
+          }
+
+          Write-Host "Windows package created: $zipFile"
+
+      - name: Upload Windows build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: Papagayo-VUE-Windows-Build
+          path: dist/Papagayo-VUE-Windows.zip
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Upload executable separately
+        uses: actions/upload-artifact@v4
+        with:
+          name: Papagayo-VUE-Windows-Executable
+          path: dist
