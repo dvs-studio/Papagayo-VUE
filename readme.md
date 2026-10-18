@@ -223,7 +223,7 @@ Papagayo-NG exports synced mouth data to popular 2D/3D animation software:
   * Stefan Murawski
   * Azia Giles Abuara
   * Owen Gallagher
-  * Modernization Contributors & Community (2026)
+  * Victory Ukpong - Contributors & Community (2026)
 
 ## License
 
