@@ -5,14 +5,13 @@ import tempfile
 from pathlib import Path
 import time
 
-import PySide2.QtCore as QtCore
+from qt_compat import QtCore, QtWidgets
 import utilities
 
 if utilities.get_app_data_path() not in os.environ['PATH']:
     os.environ['PATH'] += os.pathsep + utilities.get_app_data_path()
 import pydub
 from pydub.generators import WhiteNoise
-from PySide2 import QtWidgets
 from allosaurus.app import read_recognizer
 
 from utilities import get_main_dir

@@ -10,9 +10,7 @@ if utilities.get_app_data_path() not in os.environ['PATH']:
 import audioread
 import struct
 
-from PySide2.QtCore import QCoreApplication
-from PySide2.QtCore import QUrl
-from PySide2.QtMultimedia import QMediaPlayer
+from qt_compat import QCoreApplication, QUrl, QMediaPlayer
 from cffi import FFI
 
 from utilities import *

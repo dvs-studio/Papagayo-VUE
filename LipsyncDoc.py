@@ -44,7 +44,7 @@ try:
 except ImportError:
     import ConfigParser as configparser
 
-import PySide2.QtCore as QtCore
+from qt_compat import QtCore
 
 import utilities
 from PronunciationDialogQT import PronunciationDialog, show_pronunciation_dialog

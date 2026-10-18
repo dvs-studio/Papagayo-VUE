@@ -4,9 +4,7 @@ import os
 import threading
 import utilities
 
-from PySide2 import QtWidgets
-from PySide2.QtWidgets import QProgressDialog
-from PySide2.QtCore import QCoreApplication
+from qt_compat import QtWidgets, QProgressDialog, QCoreApplication
 import sys
 
 if sys.platform == "win32":

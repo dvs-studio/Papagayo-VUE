@@ -133,6 +133,8 @@ def parse_cli():
     return args.use_cli
 
 
+from qt_compat import exec_app
+
 if __name__ == "__main__":
     init_logging()
 
@@ -148,4 +150,4 @@ if __name__ == "__main__":
                 ctypes.WinDLL('user32').ShowWindow(kernel32.GetConsoleWindow(), 0)
         papagayo_window = LipsyncFrameQT.LipsyncFrame()
         papagayo_window.main_window.show()
-        sys.exit(papagayo_window.app.exec_())
+        sys.exit(exec_app(papagayo_window.app))

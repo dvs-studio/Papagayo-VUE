@@ -22,9 +22,7 @@
 import shutil
 from functools import partial
 
-import PySide2.QtWidgets as QtWidgets
-from PySide2.QtCore import QFile
-from PySide2.QtUiTools import QUiLoader as uic
+from qt_compat import QtWidgets, QtCore, QFile, uic
 
 import utilities
 from utilities import *

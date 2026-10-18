@@ -20,15 +20,8 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
-import PySide2.QtCore as QtCore
-import PySide2.QtGui as QtGui
+from qt_compat import QtCore, QtGui, QtWidgets, QDesktopServices, uic, QFile
 import yaml
-from PySide2.QtGui import QDesktopServices
-import PySide2.QtWidgets as QtWidgets
-# from PySide2.QtWebEngineWidgets import QWebEngineView, QWebEnginePage
-
-from PySide2.QtUiTools import QUiLoader as uic
-from PySide2.QtCore import QFile
 
 import utilities
 from utilities import *

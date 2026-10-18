@@ -2,9 +2,7 @@ import platform
 import time
 import traceback
 
-from PySide2.QtCore import QCoreApplication
-from PySide2.QtCore import QUrl
-from PySide2.QtMultimedia import QMediaPlayer
+from qt_compat import QCoreApplication, QUrl, QMediaPlayer
 from cffi import FFI
 
 import utilities

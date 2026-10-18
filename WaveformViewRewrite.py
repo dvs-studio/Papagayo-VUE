@@ -23,9 +23,8 @@
 import re
 import time
 
-import PySide2.QtWidgets as QtWidgets
+from qt_compat import QtWidgets, QtGui, QtCore
 import numpy as np
-from PySide2 import QtGui
 
 from LipsyncDoc import *
 

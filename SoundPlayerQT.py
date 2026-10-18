@@ -1,13 +1,14 @@
-from PySide2 import QtWidgets
+from qt_compat import QtWidgets, QCoreApplication, QUrl
+from qt_compat import QMediaPlayer, QAudioOutput
+try:
+    from qt_compat import QAudioFormat, QAudioBuffer, QAudioDecoder
+except ImportError:
+    QAudioFormat = None
+    QAudioBuffer = None
+    QAudioDecoder = None
 
 from utilities import *
-
 import time
-
-from PySide2.QtMultimedia import QMediaPlayer, QAudioFormat, QAudioBuffer, QAudioDecoder
-from PySide2.QtMultimedia import QAudioOutput
-from PySide2.QtCore import QCoreApplication
-from PySide2.QtCore import QUrl
 
 from utilities import which
 from cffi import FFI

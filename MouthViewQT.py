@@ -22,7 +22,7 @@
 # import os
 import os
 
-from PySide2 import QtGui, QtCore, QtWidgets
+from qt_compat import QtGui, QtCore, QtWidgets
 
 import utilities
 

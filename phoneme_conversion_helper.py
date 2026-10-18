@@ -4,10 +4,11 @@ import shutil
 import sys
 from functools import partial
 
-from PySide2.QtCore import Qt, QSize, QRect
-from PySide2.QtGui import QPixmap, QIcon, QPainter, QFont, QPen
-from PySide2.QtWidgets import QWidget, QApplication, QGridLayout, QLabel, QScrollArea, QMainWindow, QComboBox, \
-    QPushButton, QDialog, QMessageBox
+from qt_compat import (
+    Qt, QSize, QRect, QPixmap, QIcon, QPainter, QFont, QPen,
+    QWidget, QApplication, QGridLayout, QLabel, QScrollArea, QMainWindow,
+    QComboBox, QPushButton, QDialog, QMessageBox
+)
 
 import utilities
 

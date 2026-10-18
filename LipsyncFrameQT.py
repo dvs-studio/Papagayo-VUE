@@ -31,9 +31,7 @@ import time
 from functools import partial
 from pprint import pprint
 
-from PySide2.QtCore import QFile, QObject
-from PySide2 import QtCore, QtGui, QtWidgets
-from PySide2.QtUiTools import QUiLoader as uic
+from qt_compat import QFile, QObject, QtCore, QtGui, QtWidgets, uic
 
 import urllib.request
 import io

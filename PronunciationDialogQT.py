@@ -19,7 +19,7 @@
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 import os
 
-from PySide2 import QtCore, QtWidgets, QtGui
+from qt_compat import QtCore, QtWidgets, QtGui
 
 import utilities
 from MouthViewQT import MouthView

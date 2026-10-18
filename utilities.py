@@ -1,4 +1,3 @@
-import imp
 import os
 import platform
 import sys
@@ -6,7 +5,7 @@ import traceback
 import appdirs
 import logging
 
-from PySide2 import QtCore, QtGui
+from qt_compat import QtCore, QtGui
 
 original_colors = {"wave_fill_color": QtGui.QColor(162, 205, 242),
                    "wave_line_color": QtGui.QColor(30, 121, 198),
@@ -24,9 +23,7 @@ original_colors = {"wave_fill_color": QtGui.QColor(162, 205, 242),
 
 
 def main_is_frozen():
-    return (hasattr(sys, "frozen") or  # new py2exe
-            hasattr(sys, "importers") or  # old py2exe
-            imp.is_frozen("__main__"))  # tools/freeze
+    return bool(getattr(sys, "frozen", False) or hasattr(sys, "importers"))
 
 
 def get_main_dir():

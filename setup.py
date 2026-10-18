@@ -1,61 +1,75 @@
+# -*- coding: utf-8 -*-
 # Papagayo-NG, a lip-sync tool for use with several different animation suites
 # Original Copyright (C) 2005 Mike Clifton
-# Contact information at http://www.lostmarble.com
-#
-# This program is free software; you can redistribute it and/or
-# modify it under the terms of the GNU General Public License
-# as published by the Free Software Foundation; either version 2
-# of the License, or (at your option) any later version.
-#
-# This program is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
-#
-# You should have received a copy of the GNU General Public License
-# along with this program; if not, write to the Free Software
-# Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
+# Modifications (C) 2020-2026 Morevna Project / Papagayo-NG Contributors
+# Licensed under GNU General Public License v2 or later (see gpl.txt)
 
-# setup.py
-# To run: python setup.py py2exe
-# To display options: python setup.py py2exe --help
-# To run in GUI mode: setup(windows=["app.py"])
-# To run in command-line mode: setup(console=["app.py"])
-from distutils.core import setup
-import py2exe
+from setuptools import setup, find_packages
 import os
 import sys
 
-resources = [("", ["papagayo-ng.nsi", "papagayo-ng.ico", "gpl.txt"])]
-for root, dirs, files in os.walk('rsrc'):
-    if ".svn" in root:
-        continue
-    dirdata = (root, [])
-    for file in files:
-        if "~" in file:
-            continue
-        dirdata[1].append(os.path.join(root, file))
-    resources.append(dirdata)
-
-for root, dirs, files in os.walk('dlls'):
-    dirdata = ("", [])
-    for file in files:
-        dirdata[1].append(os.path.join(root, file))
-    resources.append(dirdata)
+def get_version():
+    version_file = os.path.join(os.path.dirname(__file__), "version_information.txt")
+    if os.path.exists(version_file):
+        with open(version_file, "r", encoding="utf-8") as f:
+            for line in f:
+                if line.startswith("version:"):
+                    return line.split(":")[1].strip()
+    return "1.4.2"
 
 setup(
-    windows=[{
-        "script": "papagayo-ng.py",
-        "icon_resources": [(1, "papagayo-ng.ico")],
-    }],
-    options={"py2exe": {
-        "compressed": 1,
-        "optimize": 2,
-        "packages": ["encodings"]
-    }},
     name="Papagayo-NG",
-    version="1.4.1",
-    data_files=resources
+    version=get_version(),
+    description="Lip-sync animation tool for 2D and 3D animators (Moho, Synfig, Blender)",
+    long_description=open("readme.md", encoding="utf-8").read() if os.path.exists("readme.md") else "",
+    long_description_content_type="text/markdown",
+    author="Morevna Project / Mike Clifton",
+    license="GPL-2.0-or-later",
+    url="https://github.com/morevnaproject/papagayo-ng",
+    packages=find_packages(),
+    py_modules=[
+        "qt_compat",
+        "papagayongrcc",
+        "utilities",
+        "LipsyncDoc",
+        "LipsyncFrameQT",
+        "WaveformViewRewrite",
+        "MouthViewQT",
+        "SettingsQT",
+        "AboutBoxQT",
+        "PronunciationDialogQT",
+        "SoundPlayer",
+        "SoundPlayerNew",
+        "SoundPlayerOSX",
+        "SoundPlayerQT",
+        "Rhubarb",
+        "auto_recognition",
+        "phoneme_conversion_helper"
+    ],
+    install_requires=[
+        "PySide6>=6.5.0",
+        "sounddevice>=0.4.6",
+        "cffi>=1.15.0",
+        "numpy>=1.22.0",
+        "pydub>=0.25.1",
+        "anytree>=2.8.0",
+        "audioread>=3.0.0",
+        "appdirs>=1.4.4",
+        "pyyaml>=6.0",
+    ],
+    extras_require={
+        "legacy": [
+            "PySide2>=5.15.2",
+        ],
+        "build": [
+            "pyinstaller>=6.0.0",
+            "pyinstaller-versionfile>=2.1.1",
+        ]
+    },
+    entry_points={
+        "gui_scripts": [
+            "papagayo-ng = papagayo_ng:main",
+        ]
+    },
+    python_requires=">=3.8",
 )
-
-os.system(r"C:\Program Files\NSIS\makensis.exe output\papagayo-ng.nsi")
