@@ -21,7 +21,10 @@
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
 from qt_compat import QtCore, QtGui, QtWidgets, QDesktopServices, uic, QFile
-import yaml
+try:
+    import yaml
+except ImportError:
+    yaml = None
 
 import utilities
 from utilities import *
@@ -44,9 +47,25 @@ class AboutBox:
         self.main_window.license.setSource(self.markdown_url)
 
     def get_version_from_yaml(self):
-        version_file = open(os.path.join(utilities.get_main_dir(), "version_information.txt"))
-        version_data = yaml.safe_load(version_file)
-        return version_data["Version"]
+        vfile_path = os.path.join(utilities.get_main_dir(), "version_information.txt")
+        if not os.path.exists(vfile_path):
+            return "1.4.2"
+        if yaml is not None:
+            try:
+                with open(vfile_path, "r", encoding="utf-8") as version_file:
+                    version_data = yaml.safe_load(version_file)
+                    return version_data.get("Version", "1.4.2")
+            except Exception:
+                pass
+        # Fallback key-value parser
+        try:
+            with open(vfile_path, "r", encoding="utf-8") as version_file:
+                for line in version_file:
+                    if line.startswith("Version:"):
+                        return line.split(":", 1)[1].strip()
+        except Exception:
+            pass
+        return "1.4.2"
 
     def open_license(self, event):
         if event.toString() == "gpl.html":

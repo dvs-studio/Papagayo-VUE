@@ -102,23 +102,32 @@ def open_file_no_gui(path, parent):
     ini_path = os.path.join(utilities.get_app_data_path(), "settings.ini")
     config = QtCore.QSettings(ini_path, QtCore.QSettings.IniFormat)
     doc = LipsyncDoc.LipsyncDoc(langman, parent)
-    if path.endswith(lipsync_extension_list):
-        if path.endswith(lipsync_extension_list[0]):
+    path_lower = path.lower()
+    is_lipsync = any(path_lower.endswith(ext.lower().lstrip('.')) or path_lower.endswith(f".{ext.lower().lstrip('.')}") for ext in lipsync_extension_list)
+    
+    if is_lipsync:
+        if path_lower.endswith(".pgo") or path_lower.endswith("pgo"):
             # open a lipsync project
             doc.open(path)
-        elif path.endswith(lipsync_extension_list[1]):
+        elif path_lower.endswith(".pg2") or path_lower.endswith("pg2"):
             # open a json based lipsync project
             doc.open_json(path)
         if doc.sound is None:
-            print("Could not load Sound file.")
-            print(doc.soundPath)
-            return None
+            # Check if there is an audio file in the same directory with same basename
+            base_without_ext = os.path.splitext(path)[0]
+            for ext in audio_extension_list:
+                candidate = f"{base_without_ext}.{ext}"
+                if os.path.exists(candidate):
+                    doc.open_audio(candidate)
+                    break
+        if doc.sound is None:
+            print(f"[Warning] Sound file not found for project ({doc.soundPath}). Loaded project transcript and phoneme tracks successfully.")
     else:
         # open an audio file
         doc.fps = int(config.value("LastFPS", 24))
         doc.open_audio(path)
         if doc.sound is None:
-            doc = None
+            print(f"[Warning] Could not initialize audio waveform from {path}")
         else:
             if len(doc.project_node.children) < 1:
                 doc.current_voice = LipsyncDoc.LipSyncObject(object_type="voice", name="Voice 1",
@@ -695,12 +704,14 @@ class LipsyncFrame:
                 # open a json based lipsync project
                 self.doc.open_json(path)
             while self.doc.sound is None:
-                # if no sound file found, then ask user to specify one
                 dlg = QtWidgets.QMessageBox(self.main_window)
-                dlg.setText('Please load correct audio file')
+                dlg.setText('Audio file not found. Please locate the associated audio file, or Cancel to continue without audio.')
                 dlg.setWindowTitle(app_title)
                 dlg.setIcon(QtWidgets.QMessageBox.Warning)
-                dlg.exec_()  # This should open it as a modal blocking window
+                dlg.setStandardButtons(QtWidgets.QMessageBox.Ok | QtWidgets.QMessageBox.Cancel)
+                ret = dlg.exec() if hasattr(dlg, "exec") else dlg.exec_()
+                if ret == QtWidgets.QMessageBox.Cancel:
+                    break
                 file_path = QtWidgets.QFileDialog.getOpenFileName(self.main_window,
                                                                   "Open Audio",
                                                                   self.config.value("WorkingDir",
@@ -708,6 +719,8 @@ class LipsyncFrame:
                                                                   audio_extensions)[0]
                 if file_path:
                     self.doc.open_audio(file_path)
+                else:
+                    break
         else:
             # open an audio file
             self.doc.fps = int(self.config.value("LastFPS", 24))
@@ -722,12 +735,16 @@ class LipsyncFrame:
                     self.doc.current_voice = self.doc.project_node.children[0]
                 self.doc.auto_recognize_phoneme()
                 # check for a .trans file with the same name as the doc
-                try:
-                    txt_file = open("{}.trans".format(path[0].rsplit('.', 1)[0]), 'r')  # TODO: Check if path is correct
-                    for line in txt_file:
-                        self.main_window.current_voice.tabBar().addTab(QtGui.QStandardItem(line))
-                except:
-                    pass
+                trans_path = "{}.trans".format(os.path.splitext(path)[0])
+                if os.path.exists(trans_path):
+                    try:
+                        with open(trans_path, 'r', encoding='utf-8', errors='replace') as txt_file:
+                            for line in txt_file:
+                                line = line.strip()
+                                if line:
+                                    self.main_window.current_voice.tabBar().addTab(line)
+                    except Exception:
+                        pass
         if self.doc is not None:
             self.main_window.setWindowTitle("{} [{}] - {}".format(self.doc.name, path, app_title))
             self.main_window.waveform_view.first_update = True

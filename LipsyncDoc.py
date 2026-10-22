@@ -20,14 +20,112 @@ import math
 import shutil
 import sys
 
-import anytree
-from anytree import NodeMixin, Node, RenderTree
+try:
+    import anytree
+    from anytree import NodeMixin, Node, RenderTree
+    from anytree.exporter import DotExporter
+except ImportError:
+    class NodeMixin(object):
+        def __init__(self, parent=None, children=None):
+            self._parent = None
+            self._children = []
+            if parent is not None:
+                self.parent = parent
+            if children:
+                self.children = children
+
+        @property
+        def root(self):
+            node = self
+            while getattr(node, "parent", None) is not None:
+                node = node.parent
+            return node
+
+        @property
+        def parent(self):
+            return getattr(self, "_parent", None)
+
+        @parent.setter
+        def parent(self, value):
+            if getattr(self, "_parent", None) is value:
+                return
+            if getattr(self, "_parent", None) is not None:
+                self._parent._children = [c for c in getattr(self._parent, "_children", []) if c is not self]
+            self._parent = value
+            if value is not None:
+                if not hasattr(value, "_children"):
+                    value._children = []
+                if self not in value._children:
+                    value._children.append(self)
+
+        @property
+        def children(self):
+            return tuple(getattr(self, "_children", []))
+
+        @children.setter
+        def children(self, value):
+            for c in list(getattr(self, "_children", [])):
+                c.parent = None
+            self._children = []
+            for c in value:
+                c.parent = self
+
+        @property
+        def descendants(self):
+            res = []
+            for c in getattr(self, "_children", []):
+                res.append(c)
+                res.extend(c.descendants)
+            return tuple(res)
+
+    class Node(NodeMixin):
+        def __init__(self, name, parent=None, children=None, **kwargs):
+            self.name = name
+            super(Node, self).__init__(parent=parent, children=children)
+            for k, v in kwargs.items():
+                setattr(self, k, v)
+
+    class RenderTree(object):
+        def __init__(self, node):
+            self.node = node
+
+    class DotExporter(object):
+        def __init__(self, node):
+            pass
+        def to_picture(self, path):
+            pass
+
+    class _AnyTreeUtil(object):
+        @staticmethod
+        def leftsibling(node):
+            if not getattr(node, "parent", None):
+                return None
+            siblings = list(node.parent.children)
+            try:
+                idx = siblings.index(node)
+                return siblings[idx - 1] if idx > 0 else None
+            except ValueError:
+                return None
+
+        @staticmethod
+        def rightsibling(node):
+            if not getattr(node, "parent", None):
+                return None
+            siblings = list(node.parent.children)
+            try:
+                idx = siblings.index(node)
+                return siblings[idx + 1] if idx + 1 < len(siblings) else None
+            except ValueError:
+                return None
+
+    class _AnyTreeModule(object):
+        util = _AnyTreeUtil
+
+    anytree = _AnyTreeModule()
+
 import importlib
 import json
 import fnmatch
-
-from anytree.exporter import DotExporter
-
 import utilities
 
 try:
@@ -54,15 +152,7 @@ logger = logging.getLogger('LipsyncDoc')
 ini_path = os.path.join(utilities.get_app_data_path(), "settings.ini")
 config = QtCore.QSettings(ini_path, QtCore.QSettings.IniFormat)
 
-if config.value("audio_output", "old") == "old":
-    import SoundPlayer as SoundPlayer
-else:
-    if sys.platform == "win32":
-        import SoundPlayerNew as SoundPlayer
-    elif sys.platform == "darwin":
-        import SoundPlayerOSX as SoundPlayer
-    else:
-        import SoundPlayer as SoundPlayer
+import SoundPlayer as SoundPlayer
 
 strip_symbols = '.,!?;-/()"'
 strip_symbols += '\N{INVERTED QUESTION MARK}'
@@ -172,6 +262,7 @@ class LipSyncObject(NodeMixin):
 
     def __init__(self, parent=None, children=None, object_type="voice", text="", start_frame=0, end_frame=0, name="",
                  tags=None, num_children=0, sound_duration=0, fps=24):
+        super(LipSyncObject, self).__init__()
         self.parent = parent
         ini_path = os.path.join(utilities.get_app_data_path(), "settings.ini")
         self.config = QtCore.QSettings(ini_path, QtCore.QSettings.IniFormat)
@@ -370,28 +461,49 @@ class LipSyncObject(NodeMixin):
         self.name = in_file.readline().strip()
         temp_text = in_file.readline().strip()
         self.text = temp_text.replace('|', '\n')
-        num_phrases = int(in_file.readline())
+        num_phrases_line = in_file.readline().strip()
+        num_phrases = int(num_phrases_line) if num_phrases_line else 0
         for p in range(num_phrases):
             self.num_children += 1
             phrase = LipSyncObject(object_type="phrase", parent=self)
             phrase.text = in_file.readline().strip()
-            phrase.start_frame = int(in_file.readline())
-            phrase.end_frame = int(in_file.readline())
-            num_words = int(in_file.readline())
+            s_line = in_file.readline().strip()
+            phrase.start_frame = int(s_line) if s_line else 0
+            e_line = in_file.readline().strip()
+            phrase.end_frame = int(e_line) if e_line else phrase.start_frame
+            nw_line = in_file.readline().strip()
+            num_words = int(nw_line) if nw_line else 0
             for w in range(num_words):
                 self.num_children += 1
                 word = LipSyncObject(object_type="word", parent=phrase)
-                word_line = in_file.readline().split()
-                word.text = word_line[0]
-                word.start_frame = int(word_line[1])
-                word.end_frame = int(word_line[2])
-                num_phonemes = int(word_line[3])
+                raw_wline = in_file.readline()
+                word_line = raw_wline.split() if raw_wline else []
+                if len(word_line) >= 4:
+                    word.text = word_line[0]
+                    word.start_frame = int(word_line[1])
+                    word.end_frame = int(word_line[2])
+                    num_phonemes = int(word_line[3])
+                elif len(word_line) >= 1:
+                    word.text = word_line[0]
+                    word.start_frame = int(word_line[1]) if len(word_line) > 1 else phrase.start_frame
+                    word.end_frame = int(word_line[2]) if len(word_line) > 2 else phrase.end_frame
+                    num_phonemes = int(word_line[3]) if len(word_line) > 3 else 0
+                else:
+                    word.text = ""
+                    word.start_frame = phrase.start_frame
+                    word.end_frame = phrase.end_frame
+                    num_phonemes = 0
                 for p2 in range(num_phonemes):
                     self.num_children += 1
                     phoneme = LipSyncObject(object_type="phoneme", parent=word)
-                    phoneme_line = in_file.readline().split()
-                    phoneme.start_frame = phoneme.end_frame = int(phoneme_line[0])
-                    phoneme.text = phoneme_line[1]
+                    raw_pline = in_file.readline()
+                    phoneme_line = raw_pline.split() if raw_pline else []
+                    if len(phoneme_line) >= 2:
+                        phoneme.start_frame = phoneme.end_frame = int(phoneme_line[0])
+                        phoneme.text = phoneme_line[1]
+                    elif len(phoneme_line) == 1:
+                        phoneme.start_frame = phoneme.end_frame = int(phoneme_line[0])
+                        phoneme.text = "rest"
 
     def save(self, out_file):
         out_file.write("\t{}\n".format(self.name))
@@ -635,10 +747,11 @@ class LipSyncObject(NodeMixin):
         if len(self.children) > 0:
             start_frame = self.children[0].start_frame
             end_frame = self.children[-1].end_frame
-        else:  # No phrases means no data, so do nothing
-            return
+        else:
+            start_frame = 0
+            end_frame = getattr(self.root, "sound_duration", 24)
         json_data = {"name": self.name, "start_frame": start_frame, "end_frame": end_frame,
-                     "text": self.text, "num_children": self.num_children, "fps": self.fps}
+                     "text": self.text, "num_children": self.num_children, "fps": getattr(self, "fps", 24)}
         list_of_phrases = []
         list_of_used_phonemes = []
         for phr_id, phrase in enumerate(self.children):
@@ -687,7 +800,7 @@ class LipSyncObject(NodeMixin):
 
 
 class LipsyncDoc:
-    def __init__(self, langman: LanguageManager, parent):
+    def __init__(self, langman=None, parent=None):
         self._dirty = False
         ini_path = os.path.join(utilities.get_app_data_path(), "settings.ini")
         self.settings = QtCore.QSettings(ini_path, QtCore.QSettings.IniFormat)
@@ -700,6 +813,12 @@ class LipsyncDoc:
         self.sound = None
         self.voices = []
         self.current_voice = None
+        if langman is None:
+            langman = LanguageManager()
+            try:
+                langman.init_languages()
+            except Exception:
+                pass
         self.language_manager = langman
         self.parent = parent
         self.project_node = LipSyncObject(name=self.name, object_type="project")
@@ -714,8 +833,12 @@ class LipsyncDoc:
 
     def __del__(self):
         # Properly close down the sound object
-        if self.sound is not None:
-            del self.sound
+        if getattr(self, "sound", None) is not None:
+            try:
+                self.sound.stop()
+            except Exception:
+                pass
+            self.sound = None
 
     def open_json(self, path):
         self._dirty = False
@@ -766,44 +889,51 @@ class LipsyncDoc:
         self.sound = None
         self.voices = []
         self.current_voice = None
-        in_file = open(self.path, 'r')
-        in_file.readline()  # discard the header
-        self.soundPath = in_file.readline().strip()
-        if not os.path.isabs(self.soundPath):
-            self.soundPath = os.path.normpath("{}/{}".format(os.path.dirname(self.path), self.soundPath))
-        self.fps = int(in_file.readline())
-        print(("self.path: {}".format(self.path)))
-        self.soundDuration = int(in_file.readline())
-        print(("self.soundDuration: {:d}".format(self.soundDuration)))
-        self.project_node.sound_duration = self.soundDuration
-        num_voices = int(in_file.readline())
-        for i in range(num_voices):
-            voice = LipSyncObject(object_type="voice", parent=self.project_node)
-            voice.open(in_file)
-            self.voices.append(voice)
-        in_file.close()
-        self.open_audio(self.soundPath)
+        with open(self.path, 'r', encoding='utf-8', errors='replace') as in_file:
+            in_file.readline()  # discard the header
+            raw_sound_path = in_file.readline().strip()
+            self.soundPath = raw_sound_path
+            if self.soundPath:
+                clean_filename = raw_sound_path.replace('\\', '/').split('/')[-1]
+                same_dir = os.path.normpath(os.path.join(os.path.dirname(self.path), clean_filename))
+                if os.path.exists(same_dir):
+                    self.soundPath = same_dir
+                elif not os.path.isabs(self.soundPath):
+                    candidate = os.path.normpath(os.path.join(os.path.dirname(self.path), self.soundPath))
+                    if os.path.exists(candidate):
+                        self.soundPath = candidate
+            fps_line = in_file.readline().strip()
+            self.fps = int(fps_line) if fps_line else 24
+            dur_line = in_file.readline().strip()
+            self.soundDuration = int(dur_line) if dur_line else 0
+            self.project_node.sound_duration = self.soundDuration
+            num_voices_line = in_file.readline().strip()
+            num_voices = int(num_voices_line) if num_voices_line else 0
+            for i in range(num_voices):
+                voice = LipSyncObject(object_type="voice", parent=self.project_node)
+                voice.open(in_file)
+                self.voices.append(voice)
+
+        if self.soundPath and os.path.exists(self.soundPath):
+            self.open_audio(self.soundPath)
         if len(self.voices) > 0:
             self.current_voice = self.voices[0]
 
     def open_audio(self, path):
-        if not os.path.exists(path):
+        if not path or not os.path.exists(path):
+            self.sound = None
             return
         if self.sound is not None:
+            try:
+                self.sound.stop()
+            except Exception:
+                pass
             del self.sound
             self.sound = None
-        # self.soundPath = str(path.encode("utf-8"))
-        self.soundPath = path  # .encode('latin-1', 'replace')
+        self.soundPath = os.path.abspath(path)
         self.sound = SoundPlayer.SoundPlayer(self.soundPath, self.parent)
         if self.sound.IsValid():
-            print("valid sound")
-            self.soundDuration = int(self.sound.Duration() * self.fps)
-            print(("self.sound.Duration(): {:d}".format(int(self.sound.Duration()))))
-            print(("frameRate: {:d}".format(int(self.fps))))
-            print(("soundDuration1: {:d}".format(self.soundDuration)))
-            if self.soundDuration < self.sound.Duration() * self.fps:
-                self.soundDuration += 1
-                print(("soundDuration2: {:d}".format(self.soundDuration)))
+            self.soundDuration = max(1, int(round(self.sound.Duration() * self.fps)))
             self.project_node.sound_duration = self.soundDuration
         else:
             self.sound = None

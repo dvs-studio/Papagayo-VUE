@@ -1,0 +1,12 @@
+# Native Desktop Requirements for Papagayo-NG (Python 3.10+)
+PySide6>=6.5.0
+sounddevice>=0.4.6
+cffi>=1.15.0
+numpy>=1.22.0
+pydub>=0.25.1
+anytree>=2.8.0
+audioread>=3.0.0
+appdirs>=1.4.4
+pyyaml>=6.0
+pyinstaller>=6.0.0
+pyinstaller-versionfile>=2.1.1

@@ -2,8 +2,22 @@ import os
 import platform
 import sys
 import traceback
-import appdirs
 import logging
+
+try:
+    import appdirs
+except ImportError:
+    class _AppDirsFallback:
+        @staticmethod
+        def user_data_dir(appname, appauthor=None):
+            home = os.path.expanduser("~")
+            if sys.platform == "win32":
+                base = os.environ.get("APPDATA", home)
+                return os.path.join(base, appauthor or "", appname) if appauthor else os.path.join(base, appname)
+            elif sys.platform == "darwin":
+                return os.path.join(home, "Library", "Application Support", appname)
+            return os.path.join(os.environ.get("XDG_DATA_HOME", os.path.join(home, ".local", "share")), appname)
+    appdirs = _AppDirsFallback()
 
 from qt_compat import QtCore, QtGui
 
@@ -30,10 +44,10 @@ def get_main_dir():
     """ Get absolute path to resource, works for dev and for PyInstaller """
     try:
         # PyInstaller creates a temp folder and stores path in _MEIPASS
-        if sys._MEIPASS:
-            base_path = os.path.dirname(sys.executable)
+        if getattr(sys, "_MEIPASS", None):
+            base_path = sys._MEIPASS
         else:
-            base_path = os.path.abspath(".")
+            base_path = os.path.dirname(os.path.abspath(__file__))
     except Exception:
         base_path = os.path.abspath(".")
     return base_path
@@ -43,12 +57,7 @@ def get_app_data_path():
     app_name = "PapagayoNG"
     app_author = "Morevna Project"
     user_data_dir = appdirs.user_data_dir(app_name, app_author)
-    # If user data dir does not exist yet we create it.
-    author_dir = os.path.abspath(os.path.join(user_data_dir, os.pardir))
-    if not os.path.exists(author_dir):
-        os.mkdir(author_dir)
-    if not os.path.exists(user_data_dir):
-        os.mkdir(user_data_dir)
+    os.makedirs(user_data_dir, exist_ok=True)
     ini_path = os.path.join(user_data_dir, "settings.ini")
     config = QtCore.QSettings(ini_path, QtCore.QSettings.IniFormat)
     config.setFallbacksEnabled(False)  # File only, not registry or or.

@@ -24,7 +24,20 @@ import re
 import time
 
 from qt_compat import QtWidgets, QtGui, QtCore
-import numpy as np
+try:
+    import numpy as np
+except ImportError:
+    class _NumPyFallback:
+        @staticmethod
+        def asarray(x, dtype=float):
+            return [float(i) for i in x]
+        @staticmethod
+        def ptp(x):
+            return (max(x) - min(x)) if len(x) > 0 else 0.0
+        @staticmethod
+        def zeros_like(x):
+            return [0.0] * len(x)
+    np = _NumPyFallback()
 
 from LipsyncDoc import *
 
@@ -33,8 +46,13 @@ from LipsyncDoc import *
 
 
 def normalize(x):
-    x = np.asarray(x)
-    return ((x - x.min()) / (np.ptp(x))) * 0.8
+    x = np.asarray(x, dtype=float)
+    if len(x) == 0:
+        return x
+    ptp = np.ptp(x)
+    if ptp == 0:
+        return np.zeros_like(x)
+    return ((x - x.min()) / ptp) * 0.8
 
 
 font = QtGui.QFont("Swiss", 6)
@@ -669,14 +687,14 @@ class WaveformView(QtWidgets.QGraphicsView):
         offset = 0  # available_height / 2
         temp_polygon = QtGui.QPolygonF()
         for x, y in enumerate(fitted_samples):
-            progress_callback.emit((x / 2))
+            progress_callback.emit(int(x / 2))
             self.main_window.statusbar.showMessage(
                 self.translator.translate("WaveformView", "Preparing Waveform: {0}%").format(str(int(((x / 2) / len(fitted_samples)) * 100))))
             temp_polygon.append(QtCore.QPointF(x * self.sample_width, available_height - y + offset))
             if x < len(fitted_samples):
                 temp_polygon.append(QtCore.QPointF((x + 1) * self.sample_width, available_height - y + offset))
         for x, y in enumerate(fitted_samples[::-1]):
-            progress_callback.emit((len(fitted_samples) / 2) + (x / 2))
+            progress_callback.emit(int((len(fitted_samples) / 2) + (x / 2)))
             self.main_window.statusbar.showMessage(
                 self.translator.translate("WaveformView", "Preparing Waveform: {0}%").format(str(int(((x / 2) / len(fitted_samples)) * 100) + 50)))
             temp_polygon.append(QtCore.QPointF((len(fitted_samples) - x) * self.sample_width,
@@ -831,7 +849,7 @@ class WaveformView(QtWidgets.QGraphicsView):
         worker.signals.progress.connect(self.main_window.lip_sync_frame.status_bar_progress)
 
         self.main_window.lip_sync_frame.status_progress.show()
-        self.main_window.lip_sync_frame.status_progress.setMaximum(self.doc.sound.Duration())
+        self.main_window.lip_sync_frame.status_progress.setMaximum(max(1, int(self.doc.sound.Duration())))
         self.threadpool.start(worker)
         if wait_for_done:
             self.threadpool.waitForDone()
@@ -847,7 +865,7 @@ class WaveformView(QtWidgets.QGraphicsView):
         max_amp = 0.0
         self.amp = []
         while time_pos < duration:
-            progress_callback.emit(time_pos)
+            progress_callback.emit(int(time_pos))
             self.num_samples += 1
             amp = self.doc.sound.GetRMSAmplitude(time_pos, sample_dur)
             self.amp.append(amp)
@@ -893,8 +911,9 @@ class WaveformView(QtWidgets.QGraphicsView):
         self.scroll_position = value
 
     def wheelEvent(self, event):
-        self.scroll_position = self.horizontalScrollBar().value() + (event.delta() / 1.2)
-        self.horizontalScrollBar().setValue(self.scroll_position)
+        delta = event.angleDelta().y() if hasattr(event, "angleDelta") else getattr(event, "delta", lambda: 0)()
+        self.scroll_position = self.horizontalScrollBar().value() + (delta / 1.2)
+        self.horizontalScrollBar().setValue(int(self.scroll_position))
 
     def resize_finished(self):
         self.start_create_waveform()

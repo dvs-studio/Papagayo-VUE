@@ -1,0 +1,8 @@
+{
+  "name": "Papagayo-NG",
+  "description": "Modernized lip-sync animation tool for 2D and 3D animators with audio analysis and export support.",
+  "permissions": [],
+  "capabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}

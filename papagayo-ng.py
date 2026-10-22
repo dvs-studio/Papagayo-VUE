@@ -75,17 +75,19 @@ def parse_cli():
             config.setValue("MouthDir", args.mouth_image_dir)
         if args.input_file_path:
             parent = ParentClass()
+            all_supported = tuple(ext.lower().lstrip('.') for ext in LipsyncFrameQT.lipsync_extension_list + LipsyncFrameQT.audio_extension_list)
             if os.path.isdir(args.input_file_path):
                 for (dirpath, dirnames, filenames) in os.walk(args.input_file_path):
-                    list_of_input_files.extend(os.path.join(dirpath, filename) if filename.endswith(
-                        LipsyncFrameQT.lipsync_extension_list + LipsyncFrameQT.audio_extension_list) else "" for filename in
-                                               filenames)
+                    for filename in filenames:
+                        fn_ext = filename.lower().rsplit('.', 1)[-1] if '.' in filename else ''
+                        if fn_ext in all_supported:
+                            list_of_input_files.append(os.path.join(dirpath, filename))
                     break
             else:
-                if args.input_file_path.endswith(
-                        LipsyncFrameQT.lipsync_extension_list + LipsyncFrameQT.audio_extension_list):
+                input_ext = args.input_file_path.lower().rsplit('.', 1)[-1] if '.' in args.input_file_path else ''
+                if input_ext in all_supported:
                     list_of_input_files.append(args.input_file_path)
-            list_of_input_files = filter(None, list_of_input_files)
+            list_of_input_files = [f for f in list_of_input_files if f]
             print("Input Files:")
             list_of_doc_objects = []
             for i in list_of_input_files:

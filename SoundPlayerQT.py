@@ -15,7 +15,10 @@ from cffi import FFI
 
 ffi = FFI()
 
-import numpy as np
+try:
+    import numpy as np
+except ImportError:
+    np = None
 
 try:
     import thread

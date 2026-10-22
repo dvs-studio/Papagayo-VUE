@@ -1,0 +1,10 @@
+{
+  "name": "papagayo-ng",
+  "version": "1.4.2",
+  "description": "Papagayo-NG Lip-Sync Animation Studio and Verification Engine",
+  "scripts": {
+    "dev": "python3 main.py",
+    "start": "python3 main.py",
+    "build": "python3 -c 'import app, main; print(\"Build check OK\")'"
+  }
+}

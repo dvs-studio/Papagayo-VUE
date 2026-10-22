@@ -102,17 +102,25 @@ class MouthView(QtWidgets.QGraphicsView):
     def process_mouth_dir(self, dir_name, names, supported_imagetypes):
         has_images = False
         for files in names:
-            files = files.lower()
-            if files.split(".")[-1] in supported_imagetypes:
+            files_lower = files.lower()
+            ext = files_lower.split(".")[-1]
+            if ext in supported_imagetypes:
                 has_images = True
         if not has_images:
             return
         self.add_mouth(os.path.normpath(dir_name), names)
 
     def load_mouths(self):
-        supported_imagetypes = QtGui.QImageReader.supportedImageFormats()
-        for directory, dir_names, file_names in os.walk(os.path.join(utilities.get_main_dir(), "rsrc", "mouths")):
-            self.process_mouth_dir(directory, file_names, supported_imagetypes)
+        try:
+            supported_imagetypes = {bytes(fmt).decode('ascii', errors='ignore').lower()
+                                    for fmt in QtGui.QImageReader.supportedImageFormats()}
+        except Exception:
+            supported_imagetypes = set()
+        supported_imagetypes.update({"png", "jpg", "jpeg", "bmp"})
+        mouths_base = os.path.join(utilities.get_main_dir(), "rsrc", "mouths")
+        if os.path.isdir(mouths_base):
+            for directory, dir_names, file_names in os.walk(mouths_base):
+                self.process_mouth_dir(directory, file_names, supported_imagetypes)
 
     def add_mouth(self, dir_name, names):
         bitmaps = {}
