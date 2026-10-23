@@ -44,17 +44,16 @@ class MouthView(QtWidgets.QGraphicsView):
         self.load_mouths()
 
     def draw_me(self, dc=None):
-        if (self.doc is not None) and (self.doc.sound is not None) and (self.doc.sound.is_playing()):
-            if self.doc.current_voice is not None:
-                phoneme = self.doc.current_voice.get_phoneme_at_frame(self.cur_frame)
-            else:
+        if self.doc is not None and self.doc.current_voice is not None:
+            phoneme = self.doc.current_voice.get_phoneme_at_frame(self.cur_frame)
+            if not phoneme:
                 phoneme = "rest"
-            if phoneme == self.current_phoneme:
-                return
-            else:
-                self.current_phoneme = phoneme
         else:
-            self.current_phoneme = "rest"
+            phoneme = "rest"
+
+        if phoneme == self.current_phoneme and len(self.scene().items()) > 0:
+            return
+        self.current_phoneme = phoneme
         if not self.current_mouth:
             self.current_mouth = list(self.mouths)[0]
         if self.current_mouth in self.mouths.keys():

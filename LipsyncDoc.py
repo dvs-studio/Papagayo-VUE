@@ -935,6 +935,8 @@ class LipsyncDoc:
         if self.sound.IsValid():
             self.soundDuration = max(1, int(round(self.sound.Duration() * self.fps)))
             self.project_node.sound_duration = self.soundDuration
+            for descendant in self.project_node.descendants:
+                descendant.sound_duration = self.soundDuration
         else:
             self.sound = None
 

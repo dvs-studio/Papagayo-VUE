@@ -83,6 +83,66 @@ class SceneWithDrag(QtWidgets.QGraphicsScene):
         e.acceptProposedAction()
 
 
+class ScrubberMarker(QtWidgets.QGraphicsRectItem):
+    """
+    Timeline playhead needle and draggable scrub handle for the waveform view.
+    Renders an accurate vertical needle line, top triangular pointer, and translucent frame highlight.
+    """
+    def __init__(self, x, y, w, h, pen=None, brush=None, line_color=None, parent=None):
+        super(ScrubberMarker, self).__init__(x, y, w, h, parent)
+        if pen is not None:
+            self.setPen(pen)
+        else:
+            self.setPen(QtGui.QPen(QtCore.Qt.NoPen))
+        if brush is not None:
+            self.setBrush(brush)
+        self.line_color = line_color or QtGui.QColor(255, 60, 60)
+        self.setZValue(1000)
+        self.setOpacity(0.9)
+
+    def paint(self, painter, option, widget=None):
+        super(ScrubberMarker, self).paint(painter, option, widget)
+        r = self.rect()
+        painter.save()
+        painter.setRenderHint(QtGui.QPainter.Antialiasing, True)
+
+        center_x = r.x() + (r.width() / 2.0)
+
+        # Draw vertical playhead center needle
+        needle_pen = QtGui.QPen(self.line_color, 2)
+        painter.setPen(needle_pen)
+        painter.drawLine(QtCore.QPointF(center_x, r.y()), QtCore.QPointF(center_x, r.y() + r.height()))
+
+        # Draw top scrubber handle (timeline playhead pointer)
+        handle_w = max(14.0, float(r.width()) + 6.0)
+        handle_h = 16.0
+        hx = center_x - (handle_w / 2.0)
+        poly = QtGui.QPolygonF([
+            QtCore.QPointF(hx, r.y()),
+            QtCore.QPointF(hx + handle_w, r.y()),
+            QtCore.QPointF(hx + handle_w, r.y() + handle_h - 5.0),
+            QtCore.QPointF(center_x, r.y() + handle_h),
+            QtCore.QPointF(hx, r.y() + handle_h - 5.0),
+        ])
+        painter.setBrush(QtGui.QBrush(self.line_color))
+        painter.setPen(QtGui.QPen(QtGui.QColor(20, 20, 20), 1.5))
+        painter.drawPolygon(poly)
+
+        # Inner highlight on handle
+        accent_poly = QtGui.QPolygonF([
+            QtCore.QPointF(hx + 2.0, r.y() + 2.0),
+            QtCore.QPointF(hx + handle_w - 2.0, r.y() + 2.0),
+            QtCore.QPointF(hx + handle_w - 2.0, r.y() + handle_h - 6.0),
+            QtCore.QPointF(center_x, r.y() + handle_h - 2.0),
+            QtCore.QPointF(hx + 2.0, r.y() + handle_h - 6.0),
+        ])
+        painter.setBrush(QtGui.QBrush(QtGui.QColor(255, 255, 255, 90)))
+        painter.setPen(QtCore.Qt.NoPen)
+        painter.drawPolygon(accent_poly)
+
+        painter.restore()
+
+
 class MovableButton(QtWidgets.QPushButton):
     def __init__(self, lipsync_object, wfv_parent, phoneme_offset=None):
         super(MovableButton, self).__init__(lipsync_object.text, None)
@@ -177,7 +237,7 @@ class MovableButton(QtWidgets.QPushButton):
     def after_reposition(self):
         self.setGeometry(self.convert_to_pixels(self.node.start_frame), self.y(),
                          self.convert_to_pixels(self.node.get_frame_size()), self.height())
-        replaced = re.sub('(border-width: \dpx) \d+px', r'\1 {}px'.format(str(self.get_handle_width())),
+        replaced = re.sub(r'(border-width: \dpx) \d+px', r'\1 {}px'.format(str(self.get_handle_width())),
                           self.styleSheet())
         self.setStyleSheet(replaced)
         self.update()
@@ -307,7 +367,8 @@ class MovableButton(QtWidgets.QPushButton):
                     self.wfv_parent.scroll_position = self.wfv_parent.horizontalScrollBar().value()
                     start_time = time.time()
                 self.wfv_parent.update()
-            self.wfv_parent.temp_play_marker.setVisible(False)
+            if self.wfv_parent.temp_play_marker:
+                self.wfv_parent.temp_play_marker.setVisible(True)
             self.wfv_parent.main_window.action_stop.setEnabled(False)
             self.wfv_parent.main_window.action_play.setEnabled(True)
             self.wfv_parent.main_window.statusbar.showMessage("Stopped")
@@ -433,7 +494,7 @@ class WaveformView(QtWidgets.QGraphicsView):
     def mousePressEvent(self, event):
         if event.button() == QtCore.Qt.LeftButton:
             possible_item = self.itemAt(event.pos())
-            if type(possible_item) == QtWidgets.QGraphicsPolygonItem:
+            if isinstance(possible_item, (QtWidgets.QGraphicsPolygonItem, ScrubberMarker)) or type(possible_item) == QtWidgets.QGraphicsPolygonItem:
                 possible_item = None
             if not possible_item:
                 if self.currently_selected_object:
@@ -453,6 +514,21 @@ class WaveformView(QtWidgets.QGraphicsView):
                 self.main_window.parent_tags.clear()
                 self.main_window.parent_tags.setEnabled(False)
                 self.is_scrubbing = True
+
+                mouse_scene_pos = self.mapToScene(event.pos()).x()
+                frame = max(0, int(round(mouse_scene_pos / self.frame_width)))
+                if self.doc and hasattr(self.doc, "soundDuration") and self.doc.soundDuration > 0:
+                    frame = min(frame, self.doc.soundDuration)
+                self.cur_frame = frame
+                self.set_frame(frame)
+                if self.main_window:
+                    if hasattr(self.main_window, "mouth_view"):
+                        self.main_window.mouth_view.set_frame(frame)
+                    self.main_window.statusbar.showMessage("Frame: {:d}".format(frame + 1))
+                if self.doc and self.doc.sound and self.doc.sound.IsValid():
+                    start = frame / float(self.doc.fps)
+                    length = max(0.05, 1.0 / float(self.doc.fps))
+                    self.doc.sound.play_segment(start, length, force=True)
             else:
                 self.main_window.tag_list_group.setEnabled(True)
                 if self.currently_selected_object:
@@ -527,22 +603,32 @@ class WaveformView(QtWidgets.QGraphicsView):
     def mouseReleaseEvent(self, event):
         if self.is_scrubbing:
             self.is_scrubbing = False
-            self.doc.sound.stop()
-            self.temp_play_marker.setVisible(False)
-            self.main_window.mouth_view.set_frame(0)
+            if self.doc and self.doc.sound:
+                self.doc.sound.stop()
+            self.set_frame(self.cur_frame)
+            if self.main_window:
+                if hasattr(self.main_window, "mouth_view"):
+                    self.main_window.mouth_view.set_frame(self.cur_frame)
+                self.main_window.statusbar.showMessage("Frame: {:d}".format(self.cur_frame + 1))
         super(WaveformView, self).mouseReleaseEvent(event)
 
     def mouseMoveEvent(self, event):
         if self.is_scrubbing:
             mouse_scene_pos = self.mapToScene(event.pos()).x()
-            if not self.doc.sound.is_playing():
-                start = round(mouse_scene_pos / self.frame_width) / self.doc.fps
-                length = self.frame_width / self.doc.fps
-                self.doc.sound.play_segment(start, length)
-            self.draw_play_marker = True
-            self.temp_play_marker.setVisible(True)
-            self.temp_play_marker.setPos(round(mouse_scene_pos / self.frame_width) * self.frame_width, 0)
-            self.main_window.mouth_view.set_frame(round(mouse_scene_pos / self.frame_width))
+            frame = max(0, int(round(mouse_scene_pos / self.frame_width)))
+            if self.doc and hasattr(self.doc, "soundDuration") and self.doc.soundDuration > 0:
+                frame = min(frame, self.doc.soundDuration)
+            if frame != self.cur_frame:
+                self.cur_frame = frame
+                self.set_frame(frame)
+                if self.main_window:
+                    if hasattr(self.main_window, "mouth_view"):
+                        self.main_window.mouth_view.set_frame(frame)
+                    self.main_window.statusbar.showMessage("Frame: {:d}".format(frame + 1))
+                if self.doc and self.doc.sound and self.doc.sound.IsValid():
+                    start = frame / float(self.doc.fps)
+                    length = max(0.05, 1.0 / float(self.doc.fps))
+                    self.doc.sound.play_segment(start, length, force=True)
         else:
             super(WaveformView, self).mouseMoveEvent(event)
 
@@ -581,21 +667,25 @@ class WaveformView(QtWidgets.QGraphicsView):
         e.accept()
 
     def set_frame(self, frame):
+        line_color = QtGui.QColor(
+            self.settings.value("/Graphics/{}".format("playback_line_color"),
+                                utilities.original_colors.get("playback_line_color", "#ff3333")))
+        fill_color = QtGui.QColor(
+            self.settings.value("/Graphics/{}".format("playback_fill_color"),
+                                utilities.original_colors.get("playback_fill_color", "#ff6666")))
+        fill_color.setAlpha(60)
+
+        marker_h = max(int(self.height()), 600)
+        marker_w = max(self.frame_width, 4)
+
         if self.temp_play_marker not in self.scene().items():
-            self.temp_play_marker = self.scene().addRect(0, 1, self.frame_width + 1, self.height(),
-                                                         QtGui.QPen(QtGui.QColor(
-                                                             self.settings.value(
-                                                                 "/Graphics/{}".format("playback_line_color"),
-                                                                 utilities.original_colors[
-                                                                     "playback_line_color"]))),
-                                                         QtGui.QBrush(QtGui.QColor(
-                                                             self.settings.value(
-                                                                 "/Graphics/{}".format("playback_fill_color"),
-                                                                 utilities.original_colors[
-                                                                     "playback_fill_color"])), QtCore.Qt.SolidPattern))
-            self.temp_play_marker.setZValue(1000)
-            self.temp_play_marker.setOpacity(0.5)
-            self.temp_play_marker.setVisible(True)
+            self.temp_play_marker = ScrubberMarker(0, 1, marker_w, marker_h,
+                                                   QtGui.QPen(QtCore.Qt.NoPen),
+                                                   QtGui.QBrush(fill_color),
+                                                   line_color)
+            self.scene().addItem(self.temp_play_marker)
+
+        self.temp_play_marker.setVisible(True)
         self.centerOn(self.temp_play_marker)
         self.temp_play_marker.setPos(frame * self.frame_width, 0)
         self.update()
@@ -675,7 +765,8 @@ class WaveformView(QtWidgets.QGraphicsView):
         self.horizontalScrollBar().setValue(self.scroll_position)
         try:
             if self.temp_play_marker:
-                self.temp_play_marker.setRect(self.temp_play_marker.rect().x(), 1, self.frame_width + 1, self.height())
+                self.temp_play_marker.setRect(self.temp_play_marker.rect().x(), 1, max(self.frame_width, 4), max(self.height(), 400))
+                self.temp_play_marker.setVisible(True)
         except RuntimeError:
             pass  # When changing a file we get a RuntimeError from QT because it deletes the temp_play_marker
         self.waveform_polygon.resetTransform()  # Change the transform back when resize is finished.
@@ -888,22 +979,9 @@ class WaveformView(QtWidgets.QGraphicsView):
                         pass
                 self.create_movbuttons(self.main_window.lip_sync_frame.status_bar_progress)
                 self.start_recalc()
-                if self.temp_play_marker not in self.scene().items():
-                    self.temp_play_marker = self.scene().addRect(0, 1, self.frame_width + 1, self.height(),
-                                                                 QtGui.QPen(QtGui.QColor(
-                                                                     self.settings.value(
-                                                                         "/Graphics/{}".format("playback_line_color"),
-                                                                         utilities.original_colors[
-                                                                             "playback_line_color"]))),
-                                                                 QtGui.QBrush(QtGui.QColor(
-                                                                     self.settings.value(
-                                                                         "/Graphics/{}".format("playback_fill_color"),
-                                                                         utilities.original_colors[
-                                                                             "playback_fill_color"])),
-                                                                     QtCore.Qt.SolidPattern))
-                    self.temp_play_marker.setZValue(1000)
-                    self.temp_play_marker.setOpacity(0.5)
-                    self.temp_play_marker.setVisible(False)
+                self.set_frame(0)
+                if self.temp_play_marker:
+                    self.temp_play_marker.setVisible(True)
                 self.setViewportUpdateMode(QtWidgets.QGraphicsView.FullViewportUpdate)
                 self.scene().update()
 

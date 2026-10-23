@@ -890,7 +890,8 @@ class LipsyncFrame:
             self.doc.sound.set_cur_time(0)
             self.doc.sound.play(False)
             self.timer = QtCore.QTimer()
-            self.main_window.waveform_view.temp_play_marker.setVisible(True)
+            if self.main_window.waveform_view.temp_play_marker:
+                self.main_window.waveform_view.temp_play_marker.setVisible(True)
             self.timer.timeout.connect(self.on_play_tick)
             # self.connect(self.timer, None, self.on_play_tick)
             self.timer.start(250.0 / self.doc.fps)
@@ -899,9 +900,10 @@ class LipsyncFrame:
         if (self.doc is not None) and (self.doc.sound is not None):
             self.doc.sound.stop()
             self.doc.sound.set_cur_time(0)
-            self.main_window.waveform_view.temp_play_marker.setVisible(False)
             self.main_window.mouth_view.set_frame(0)
             self.main_window.waveform_view.set_frame(0)
+            if self.main_window.waveform_view.temp_play_marker:
+                self.main_window.waveform_view.temp_play_marker.setVisible(True)
             self.main_window.action_stop.setEnabled(False)
             self.main_window.action_play.setEnabled(True)
             self.main_window.statusbar.showMessage(self.translator.translate("LipsyncFrame", "Stopped"))
@@ -926,10 +928,10 @@ class LipsyncFrame:
                     self.main_window.waveform_view.scroll_position = self.main_window.waveform_view.horizontalScrollBar().value()
                     self.start_time = time.time()
             else:
-                self.main_window.waveform_view.temp_play_marker.setVisible(False)
                 self.on_stop()
-                self.timer.stop()
-                del self.timer
+                if hasattr(self, 'timer') and self.timer is not None:
+                    self.timer.stop()
+                    del self.timer
 
     def change_volume(self, e):
         if self.doc and self.doc.sound:
