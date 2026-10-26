@@ -138,6 +138,149 @@ def open_file_no_gui(path, parent):
     return doc
 
 
+class ExportImagesDialog(QtWidgets.QDialog):
+    def __init__(self, parent, default_base_path, config):
+        super(ExportImagesDialog, self).__init__(parent)
+        self.setWindowTitle("Export Image Sequence / Animation")
+        self.setMinimumWidth(480)
+        self.config = config
+        self.format_choice = "PNG"
+
+        layout = QtWidgets.QVBoxLayout(self)
+
+        lbl_dest = QtWidgets.QLabel("<b>Output Destination & Base Name:</b>")
+        layout.addWidget(lbl_dest)
+
+        path_box = QtWidgets.QHBoxLayout()
+        self.path_edit = QtWidgets.QLineEdit(default_base_path)
+        path_box.addWidget(self.path_edit)
+        browse_btn = QtWidgets.QPushButton("Browse...")
+        browse_btn.clicked.connect(self.browse)
+        path_box.addWidget(browse_btn)
+        layout.addLayout(path_box)
+
+        fmt_box = QtWidgets.QHBoxLayout()
+        lbl_fmt = QtWidgets.QLabel("<b>Format:</b>")
+        fmt_box.addWidget(lbl_fmt)
+        self.combo_format = QtWidgets.QComboBox()
+        self.combo_format.addItems([
+            "PNG Sequence (*_0001.png)",
+            "JPEG Sequence (*_0001.jpg)",
+            "Animated GIF (*.gif)",
+            "Animated PNG (*.png)"
+        ])
+        fmt_box.addWidget(self.combo_format)
+        layout.addLayout(fmt_box)
+
+        self.preview_lbl = QtWidgets.QLabel("")
+        self.preview_lbl.setStyleSheet("color: #4CAF50; font-weight: bold; margin-top: 4px; margin-bottom: 4px;")
+        layout.addWidget(self.preview_lbl)
+
+        saved_fallback = self.config.value("ImageExportFallbackToRest", "true").lower() == "true"
+        self.chk_fallback = QtWidgets.QCheckBox("Fallback to 'rest' mouth shape on missing phoneme")
+        self.chk_fallback.setChecked(saved_fallback)
+        self.chk_fallback.setToolTip("Checked: Missing phonemes use 'rest'. Unchecked: Holds the previous valid phoneme.")
+        layout.addWidget(self.chk_fallback)
+
+        btn_box = QtWidgets.QDialogButtonBox(QtWidgets.QDialogButtonBox.Ok | QtWidgets.QDialogButtonBox.Cancel)
+        btn_box.button(QtWidgets.QDialogButtonBox.Ok).setText("Export")
+        btn_box.accepted.connect(self.on_accept)
+        btn_box.rejected.connect(self.reject)
+        layout.addWidget(btn_box)
+
+        self.combo_format.currentIndexChanged.connect(self.update_preview)
+        self.path_edit.textChanged.connect(self.update_preview)
+        self.update_preview()
+
+    def update_preview(self):
+        cur_text = self.path_edit.text()
+        base = os.path.splitext(os.path.basename(cur_text))[0] or "dialogue"
+        idx = self.combo_format.currentIndex()
+        if idx == 0:
+            self.format_choice = "PNG"
+            self.preview_lbl.setText(f"Output Pattern: {base}_0001.png (DJV sequence)")
+        elif idx == 1:
+            self.format_choice = "JPG"
+            self.preview_lbl.setText(f"Output Pattern: {base}_0001.jpg (DJV sequence)")
+        elif idx == 2:
+            self.format_choice = "GIF"
+            self.preview_lbl.setText(f"Output File: {base}.gif (Animated GIF)")
+        else:
+            self.format_choice = "APNG"
+            self.preview_lbl.setText(f"Output File: {base}.png (Animated PNG)")
+
+    def browse(self):
+        filt = "PNG Image (*.png);;JPEG Image (*.jpg);;GIF Animation (*.gif);;All Files (*)"
+        chosen, _ = QtWidgets.QFileDialog.getSaveFileName(
+            self,
+            "Select Output File",
+            self.path_edit.text(),
+            filt,
+            options=QtWidgets.QFileDialog.DontUseNativeDialog
+        )
+        if chosen:
+            self.path_edit.setText(chosen)
+
+    def on_accept(self):
+        self.config.setValue("ImageExportFallbackToRest", "true" if self.chk_fallback.isChecked() else "false")
+        self.accept()
+
+    def get_output_path(self):
+        return self.path_edit.text().strip()
+
+    def get_fallback_to_rest(self):
+        return self.chk_fallback.isChecked()
+
+
+class PhonemeConvertDialog(QtWidgets.QDialog):
+    def __init__(self, parent, current_set, available_sets):
+        super(PhonemeConvertDialog, self).__init__(parent)
+        self.setWindowTitle("Phoneme Viseme Conversion Kit")
+        self.setMinimumWidth(380)
+
+        layout = QtWidgets.QVBoxLayout(self)
+
+        lbl_head = QtWidgets.QLabel("<b>Phoneme Viseme Conversion Kit</b>")
+        layout.addWidget(lbl_head)
+
+        lbl_curr = QtWidgets.QLabel(f"Current Phoneme Set: <b>{current_set}</b>")
+        layout.addWidget(lbl_curr)
+
+        lbl_target = QtWidgets.QLabel("Convert to Target Phoneme Set:")
+        layout.addWidget(lbl_target)
+
+        self.combo_target = QtWidgets.QComboBox()
+        standard_sets = ["preston_blair", "rhubarb", "fleming_dobbs", "CMU_39"]
+        all_unique = list(dict.fromkeys(list(available_sets) + standard_sets))
+        for s in all_unique:
+            self.combo_target.addItem(s)
+
+        if "rhubarb" in current_set.lower():
+            def_idx = self.combo_target.findText("preston_blair")
+        else:
+            def_idx = self.combo_target.findText("rhubarb")
+        if def_idx >= 0:
+            self.combo_target.setCurrentIndex(def_idx)
+
+        layout.addWidget(self.combo_target)
+
+        info_lbl = QtWidgets.QLabel(
+            "Converts all voice and phrase phonemes in this project. Waveform buttons and mouth preview will update immediately."
+        )
+        info_lbl.setWordWrap(True)
+        info_lbl.setStyleSheet("color: #666666; font-size: 11px; margin-top: 6px;")
+        layout.addWidget(info_lbl)
+
+        btn_box = QtWidgets.QDialogButtonBox(QtWidgets.QDialogButtonBox.Ok | QtWidgets.QDialogButtonBox.Cancel)
+        btn_box.button(QtWidgets.QDialogButtonBox.Ok).setText("Convert Phonemes")
+        btn_box.accepted.connect(self.accept)
+        btn_box.rejected.connect(self.reject)
+        layout.addWidget(btn_box)
+
+    def get_target_set(self):
+        return self.combo_target.currentText()
+
+
 class LipsyncFrame:
     def __init__(self):
         QtCore.QCoreApplication.setAttribute(QtCore.Qt.AA_ShareOpenGLContexts)
@@ -180,7 +323,12 @@ class LipsyncFrame:
         for mouth in mouth_list:
             self.main_window.mouth_choice.addItem(mouth)
         self.main_window.mouth_choice.setCurrentIndex(0)
-        self.main_window.mouth_choice.current_mouth = self.main_window.mouth_choice.currentText()
+        initial_mouth = self.main_window.mouth_choice.currentText()
+        if hasattr(self.main_window.mouth_view, 'set_mouth_set'):
+            self.main_window.mouth_view.set_mouth_set(initial_mouth)
+        else:
+            self.main_window.mouth_view.current_mouth = initial_mouth
+            self.main_window.mouth_view.draw_me(force=True)
         self.langman = LipsyncDoc.LanguageManager()
         self.langman.init_languages()
         language_list = list(self.langman.language_table.keys())
@@ -255,6 +403,7 @@ class LipsyncFrame:
         self.main_window.action_reset_zoom.triggered.connect(self.main_window.waveform_view.on_zoom_reset)
         self.main_window.action_settings.triggered.connect(self.show_settings)
         self.main_window.action_select_as_current_set.triggered.connect(self.set_current_phoneme_set)
+        self.main_window.action_convert_phonemes.triggered.connect(self.on_convert_phonemes)
         self.main_window.reload_dict_button.clicked.connect(self.on_reload_dictionary)
         self.main_window.waveform_view.horizontalScrollBar().sliderMoved.connect(
             self.main_window.waveform_view.on_slider_change)
@@ -524,6 +673,25 @@ class LipsyncFrame:
         if self.doc:
             phonemeset_name = self.main_window.phoneme_set.currentText()
             self.phonemeset.selected_set = self.phonemeset.load(phonemeset_name)
+
+    def on_convert_phonemes(self, event=None):
+        if not self.doc or not self.doc.project_node.children:
+            self.main_window.statusbar.showMessage(
+                self.translator.translate("LipsyncFrame", "No document or voice loaded to convert.")
+            )
+            return
+
+        current_set = getattr(self.phonemeset, "selected_set", "preston_blair") or "preston_blair"
+        avail_sets = getattr(self.phonemeset, "alternatives", ["preston_blair", "rhubarb", "fleming_dobbs", "CMU_39"])
+        dlg = PhonemeConvertDialog(self.main_window, current_set, avail_sets)
+        if dlg.exec_() == QtWidgets.QDialog.Accepted:
+            target_set = dlg.get_target_set()
+            count = self.doc.convert_to_phonemeset(target_set)
+            self.main_window.statusbar.showMessage(
+                self.translator.translate("LipsyncFrame", "Converted {0} phonemes from {1} to {2}.").format(
+                    str(count), current_set, target_set
+                )
+            )
 
     def select_voice_recognizer(self, event=None):
         self.config.setValue("/VoiceRecognition/recognizer", event)
@@ -939,8 +1107,12 @@ class LipsyncFrame:
             self.config.setValue("volume", int(self.main_window.volume_slider.value()))
 
     def on_mouth_choice(self, event=None):
-        self.main_window.mouth_view.current_mouth = self.main_window.mouth_choice.currentText()
-        self.main_window.mouth_view.draw_me()
+        selected_mouth = self.main_window.mouth_choice.currentText()
+        if hasattr(self.main_window.mouth_view, 'set_mouth_set'):
+            self.main_window.mouth_view.set_mouth_set(selected_mouth)
+        else:
+            self.main_window.mouth_view.current_mouth = selected_mouth
+            self.main_window.mouth_view.draw_me(force=True)
 
     def on_export_choice(self, event=None):
         if self.main_window.export_combo.currentText() == "Images":
@@ -1016,9 +1188,31 @@ class LipsyncFrame:
                     default_file = "{}.txt".format(self.doc.soundPath.rsplit('.', 1)[0])
                     wildcard = self.translator.translate("LipsyncFrame", "Alelo timing files (*.txt)|*.txt")
             elif exporter == "Images":
-                message = self.translator.translate("LipsyncFrame", "Export Image Strip")
-                default_file = "{}".format(self.doc.soundPath.rsplit('.', 1)[0])
-                wildcard = ""
+                active_set = self.main_window.mouth_choice.currentText()
+                default_base = os.path.splitext(self.doc.soundPath)[0] if self.doc.soundPath else os.path.join(self.config.value("WorkingDir", ""), "dialogue")
+                dlg = ExportImagesDialog(self.main_window, default_base, self.config)
+                if dlg.exec_() == QtWidgets.QDialog.Accepted:
+                    out_path = dlg.get_output_path()
+                    if not out_path:
+                        return
+                    self.config.setValue("WorkingDir", os.path.dirname(out_path))
+                    fmt = dlg.format_choice
+                    fallback_rest = dlg.get_fallback_to_rest()
+                    mouth_dir = None
+                    if hasattr(self.main_window.mouth_view, 'get_mouth_directory'):
+                        mouth_dir = self.main_window.mouth_view.get_mouth_directory(active_set)
+                    count = self.doc.current_voice.export_images(
+                        path=out_path,
+                        currentmouth=active_set,
+                        format_choice=fmt,
+                        fallback_to_rest=fallback_rest,
+                        fps=self.doc.fps,
+                        mouth_dir=mouth_dir
+                    )
+                    self.main_window.statusbar.showMessage(
+                        self.translator.translate("LipsyncFrame", f"Exported {count} frames ({fmt}) using '{active_set}'"), 5000
+                    )
+                return
             elif exporter == "JSON":
                 message = self.translator.translate("LipsyncFrame", "Export JSON Object")
                 default_file = "{}.json".format(self.doc.soundPath.rsplit('.', 1)[0])
@@ -1034,8 +1228,6 @@ class LipsyncFrame:
                     self.doc.current_voice.export(file_path if ("." in file_path) else file_path + ".dat")
                 elif exporter == "ALELO":
                     self.doc.current_voice.export_alelo(file_path, language, self.langman)
-                elif exporter == "Images":
-                    self.doc.current_voice.export_images(file_path, self.main_window.mouth_choice.currentText())
                 elif exporter == "JSON":
                     self.doc.current_voice.export_json(file_path)
 
@@ -1145,9 +1337,15 @@ class LipsyncFrame:
                 self.main_window.mouth_choice.clear()
                 for mouth in mouth_list:
                     self.main_window.mouth_choice.addItem(mouth)
-                self.main_window.mouth_choice.setCurrentIndex(
-                    self.main_window.mouth_choice.findText(os.path.basename(voiceimage_path)))
-                self.main_window.mouth_view.current_mouth = self.main_window.mouth_choice.currentText()
+                matched_idx = self.main_window.mouth_choice.findText(os.path.basename(voiceimage_path))
+                if matched_idx >= 0:
+                    self.main_window.mouth_choice.setCurrentIndex(matched_idx)
+                selected_mouth = self.main_window.mouth_choice.currentText()
+                if hasattr(self.main_window.mouth_view, 'set_mouth_set'):
+                    self.main_window.mouth_view.set_mouth_set(selected_mouth)
+                else:
+                    self.main_window.mouth_view.current_mouth = selected_mouth
+                    self.main_window.mouth_view.draw_me(force=True)
 
     def on_reload_dictionary(self, event=None):
         print("reload the dictionary")

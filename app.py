@@ -12,6 +12,7 @@ import json
 import wave
 import math
 import struct
+import shutil
 import tempfile
 import subprocess
 import urllib.parse
@@ -208,6 +209,68 @@ HTML_TEMPLATE = """
           </div>
         </div>
       </div>
+    </div>
+
+    <!-- Conversion Kit & Image Sequence Export Bar -->
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+      
+      <!-- Phoneme Viseme Conversion Kit -->
+      <div class="bg-gray-900 border border-gray-800 rounded-xl p-5 space-y-3 shadow-sm">
+        <div class="flex items-center justify-between border-b border-gray-800 pb-2.5">
+          <h2 class="text-sm font-semibold text-gray-200 uppercase tracking-wider flex items-center gap-2">
+            <svg class="w-4 h-4 text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"/></svg>
+            Phoneme Viseme Conversion Kit
+          </h2>
+          <span class="text-xs px-2 py-0.5 rounded bg-purple-900/40 text-purple-300 border border-purple-800">Bidirectional</span>
+        </div>
+        <p class="text-xs text-gray-400">Convert voice &amp; phrase phonemes between standard Papagayo (Preston Blair), Rhubarb, and Fleming Dobbs.</p>
+        <div class="flex items-center space-x-3 pt-1">
+          <select id="convertTargetSet" class="bg-gray-800 border border-gray-700 text-xs rounded-lg px-2.5 py-1.5 text-gray-200 flex-1">
+            <option value="rhubarb">Convert to Rhubarb (A, B, C, D...)</option>
+            <option value="preston_blair">Convert to Preston Blair (AI, MBP, etc...)</option>
+            <option value="fleming_dobbs">Convert to Fleming Dobbs (AA, EHSZ...)</option>
+          </select>
+          <button onclick="convertVisemesWeb()" class="px-3.5 py-1.5 rounded-lg text-xs font-semibold bg-purple-600 hover:bg-purple-500 text-white shadow transition flex items-center gap-1.5">
+            Convert Kit
+          </button>
+        </div>
+      </div>
+
+      <!-- Image Sequence Export Portal -->
+      <div class="bg-gray-900 border border-gray-800 rounded-xl p-5 space-y-3 shadow-sm">
+        <div class="flex items-center justify-between border-b border-gray-800 pb-2.5">
+          <h2 class="text-sm font-semibold text-gray-200 uppercase tracking-wider flex items-center gap-2">
+            <svg class="w-4 h-4 text-cyan-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+            Image Sequence Exporter
+          </h2>
+          <span class="text-xs px-2 py-0.5 rounded bg-cyan-900/40 text-cyan-300 border border-cyan-800">DJV Player Ready</span>
+        </div>
+        <div class="grid grid-cols-2 gap-2 text-xs">
+          <div>
+            <label class="text-gray-400 block mb-1">Prefix / Base Name:</label>
+            <input id="exportSaveName" type="text" value="shot_01" class="w-full bg-gray-800 border border-gray-700 rounded-lg px-2 py-1 text-gray-200 text-xs" />
+          </div>
+          <div>
+            <label class="text-gray-400 block mb-1">Export Format:</label>
+            <select id="exportFormatChoice" class="w-full bg-gray-800 border border-gray-700 rounded-lg px-2 py-1 text-gray-200 text-xs">
+              <option value="PNG">PNG Sequence (*_0001.png)</option>
+              <option value="JPG">JPEG Sequence (*_0001.jpg)</option>
+              <option value="GIF">Animated GIF (*.gif)</option>
+              <option value="APNG">Animated PNG (*.png)</option>
+            </select>
+          </div>
+        </div>
+        <div class="flex items-center justify-between pt-1">
+          <label class="flex items-center space-x-2 text-xs text-gray-300 cursor-pointer">
+            <input id="exportFallbackRest" type="checkbox" checked class="rounded bg-gray-800 border-gray-700 text-cyan-600 focus:ring-0" />
+            <span>Fallback to 'rest' on missing phoneme</span>
+          </label>
+          <button onclick="exportImageSequenceWeb()" class="px-3.5 py-1.5 rounded-lg text-xs font-semibold bg-cyan-600 hover:bg-cyan-500 text-white shadow transition flex items-center gap-1.5">
+            Export Images
+          </button>
+        </div>
+      </div>
+
     </div>
 
     <!-- Bottom: CLI & Windows Build Console -->
@@ -451,6 +514,76 @@ Ready. Select an action or drop a .pgo project file to test verification.
         showStatus('Windows Build Spec Validated.');
       } catch (e) {
         log(`Build check error: ${e.message}`);
+      }
+    }
+
+    async function convertVisemesWeb() {
+      const target = document.getElementById('convertTargetSet').value;
+      log(`Converting viseme set to ${target}...`);
+      try {
+        const res = await fetch('/api/convert-phonemes', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            target_set: target,
+            phonemes: phonemeList.length > 0 ? phonemeList : undefined
+          })
+        });
+        const data = await res.json();
+        if (data.success) {
+          log(`✅ Converted ${data.converted_count} phonemes to '${data.target_set}'.`);
+          showStatus(`Phoneme Kit converted ${data.converted_count} visemes to '${data.target_set}'.`);
+          if (data.phonemes) {
+            phonemeList = data.phonemes;
+            const track = document.getElementById('phonemeTrack');
+            track.innerHTML = '';
+            phonemeList.forEach(p => {
+              const span = document.createElement('span');
+              span.className = 'px-2 py-0.5 text-xs rounded bg-purple-900/40 text-purple-200 border border-purple-700 cursor-pointer hover:bg-purple-800/60';
+              span.innerText = `${p.frame}: ${p.phoneme}`;
+              span.onclick = () => selectPhoneme(p.phoneme);
+              track.appendChild(span);
+            });
+            if (phonemeList.length > 0) {
+              selectPhoneme(phonemeList[0].phoneme);
+            }
+          }
+        }
+      } catch (e) {
+        log(`Conversion error: ${e.message}`);
+      }
+    }
+
+    async function exportImageSequenceWeb() {
+      const activeMouth = document.getElementById('mouthSelect').value;
+      const saveName = document.getElementById('exportSaveName').value || 'dialogue';
+      const fmt = document.getElementById('exportFormatChoice').value;
+      const fallbackRest = document.getElementById('exportFallbackRest').checked;
+
+      log(`Exporting ${fmt} image sequence with base '${saveName}' using active mouth set '${activeMouth}'...`);
+      try {
+        const res = await fetch('/api/export-images', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            mouth_name: activeMouth,
+            format: fmt,
+            save_name: saveName,
+            fallback_to_rest: fallbackRest,
+            phonemes: phonemeList.length > 0 ? phonemeList : undefined
+          })
+        });
+        const data = await res.json();
+        if (data.success) {
+          log(`✅ Exported ${data.exported_count} frames! Format: ${data.format}`);
+          log(`  Active set: ${data.mouth_set}`);
+          log(`  Sample filenames: ${JSON.stringify(data.filenames_sample)}`);
+          showStatus(`Exported ${data.exported_count} frames (${data.format}) matching DJV format: ${data.filenames_sample[0] || saveName + '_0001.png'}`);
+        } else {
+          log(`Export failed: ${data.error}`);
+        }
+      } catch (e) {
+        log(`Export error: ${e.message}`);
       }
     }
 
@@ -777,6 +910,95 @@ class PapagayoRequestHandler(BaseHTTPRequestHandler):
                 self.send_json({"success": True, "output": proc.stdout + "\n[OK] build_windows.py and papagayo-ng.spec ready for PyInstaller execution."})
             except Exception as e:
                 self.send_json({"success": False, "error": str(e)})
+            return
+
+        if path == "/api/convert-phonemes":
+            raw_body = self.rfile.read(content_len) if content_len > 0 else b"{}"
+            try:
+                data = json.loads(raw_body.decode('utf-8'))
+            except Exception:
+                data = {}
+            target_set = data.get("target_set", "rhubarb")
+            source_set = data.get("source_set", None)
+
+            doc = LipsyncDoc.LipsyncDoc()
+            voice = LipsyncDoc.LipSyncObject(object_type='voice', name='Voice 1', parent=doc.project_node)
+            phrase = LipsyncDoc.LipSyncObject(object_type='phrase', name='Phrase', parent=voice)
+            word = LipsyncDoc.LipSyncObject(object_type='word', name='Word', parent=phrase)
+
+            input_phonemes = data.get("phonemes") or [
+                {"frame": 1, "phoneme": "etc"},
+                {"frame": 6, "phoneme": "E"},
+                {"frame": 13, "phoneme": "WQ"},
+                {"frame": 18, "phoneme": "L"},
+                {"frame": 24, "phoneme": "rest"}
+            ]
+            for p in input_phonemes:
+                ph = LipsyncDoc.LipSyncObject(object_type='phoneme', parent=word)
+                ph.start_frame = ph.end_frame = p.get("frame", 1)
+                ph.text = p.get("phoneme", "rest")
+
+            converted_count = doc.convert_to_phonemeset(target_set, source_set=source_set)
+            new_phonemes = []
+            for p in word.children:
+                new_phonemes.append({"frame": p.start_frame, "phoneme": p.text})
+
+            self.send_json({
+                "success": True,
+                "target_set": target_set,
+                "converted_count": converted_count,
+                "phonemes": new_phonemes
+            })
+            return
+
+        if path == "/api/export-images":
+            raw_body = self.rfile.read(content_len) if content_len > 0 else b"{}"
+            try:
+                data = json.loads(raw_body.decode('utf-8'))
+            except Exception:
+                data = {}
+            mouth_name = data.get("mouth_name", "4 - Preston Blair")
+            fmt = data.get("format", "PNG")
+            fallback_to_rest = data.get("fallback_to_rest", True)
+            save_name = data.get("save_name", "dialogue")
+
+            tmp_dir = tempfile.mkdtemp(prefix="papagayo_export_")
+            doc = LipsyncDoc.LipsyncDoc()
+            voice = LipsyncDoc.LipSyncObject(object_type='voice', name='Voice 1', parent=doc.project_node)
+            phrase = LipsyncDoc.LipSyncObject(object_type='phrase', name='Phrase', parent=voice)
+            word = LipsyncDoc.LipSyncObject(object_type='word', name='Word', parent=phrase)
+
+            input_phonemes = data.get("phonemes") or [
+                {"frame": 1, "phoneme": "etc"},
+                {"frame": 6, "phoneme": "E"},
+                {"frame": 13, "phoneme": "WQ"},
+                {"frame": 18, "phoneme": "L"},
+                {"frame": 24, "phoneme": "rest"}
+            ]
+            for p in input_phonemes:
+                ph = LipsyncDoc.LipSyncObject(object_type='phoneme', parent=word)
+                ph.start_frame = ph.end_frame = p.get("frame", 1)
+                ph.text = p.get("phoneme", "rest")
+            voice.sound_duration = data.get("duration_frames", 24)
+
+            out_base = os.path.join(tmp_dir, save_name)
+            exported = voice.export_images(
+                out_base,
+                currentmouth=mouth_name,
+                format_choice=fmt,
+                fallback_to_rest=fallback_to_rest,
+                fps=doc.fps
+            )
+            files = sorted(os.listdir(tmp_dir))
+            shutil.rmtree(tmp_dir, ignore_errors=True)
+            self.send_json({
+                "success": True,
+                "exported_count": exported,
+                "mouth_set": mouth_name,
+                "format": fmt,
+                "filenames_sample": files[:5] + (["..."] if len(files) > 5 else []),
+                "total_files": len(files)
+            })
             return
 
         self.send_error(404, "Endpoint not found")

@@ -10,3 +10,4 @@ appdirs>=1.4.4
 pyyaml>=6.0
 pyinstaller>=6.0.0
 pyinstaller-versionfile>=2.1.1
+Pillow>=9.0.0

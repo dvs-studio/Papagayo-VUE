@@ -19,7 +19,6 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
-# import os
 import os
 
 from qt_compat import QtGui, QtCore, QtWidgets
@@ -40,10 +39,36 @@ class MouthView(QtWidgets.QGraphicsView):
         self.old_frame = 0
         self.current_phoneme = "rest"
         self.current_mouth = None
+        self._last_rendered_mouth = None
+        self._last_rendered_phoneme = None
         self.mouths = {}
+        self.mouth_directories = {}
         self.load_mouths()
 
-    def draw_me(self, dc=None):
+    def get_mouth_directory(self, mouth_name=None):
+        """Get the filesystem directory path for a mouth set name."""
+        name = mouth_name or self.current_mouth
+        if not name:
+            if self.mouth_directories:
+                name = list(self.mouth_directories.keys())[0]
+            else:
+                return None
+        if name in self.mouth_directories:
+            return self.mouth_directories[name]
+        # Check standard resource path
+        standard_path = os.path.join(utilities.get_main_dir(), "rsrc", "mouths", name)
+        if os.path.isdir(standard_path):
+            self.mouth_directories[name] = standard_path
+            return standard_path
+        return None
+
+    def set_mouth_set(self, mouth_name):
+        """Switch active mouth set and immediately repaint preview canvas."""
+        if mouth_name in self.mouths or mouth_name in self.mouth_directories:
+            self.current_mouth = mouth_name
+            self.draw_me(force=True)
+
+    def draw_me(self, dc=None, force=False):
         if self.doc is not None and self.doc.current_voice is not None:
             phoneme = self.doc.current_voice.get_phoneme_at_frame(self.cur_frame)
             if not phoneme:
@@ -51,25 +76,52 @@ class MouthView(QtWidgets.QGraphicsView):
         else:
             phoneme = "rest"
 
-        if phoneme == self.current_phoneme and len(self.scene().items()) > 0:
+        # Check if redraw is required
+        needs_redraw = (
+            force or
+            self.current_mouth != self._last_rendered_mouth or
+            phoneme != self.current_phoneme or
+            len(self.scene().items()) == 0
+        )
+        if not needs_redraw:
             return
+
         self.current_phoneme = phoneme
         if not self.current_mouth:
-            self.current_mouth = list(self.mouths)[0]
-        if self.current_mouth in self.mouths.keys():
-            if self.current_phoneme in self.mouths[self.current_mouth].keys():
-                bitmap = self.mouths[self.current_mouth][self.current_phoneme]
+            if self.mouths:
+                self.current_mouth = list(self.mouths.keys())[0]
             else:
-                bitmap = self.mouths[self.current_mouth]["rest"]
-        else:
-            bitmap = self.mouths[list(self.mouths)[0]]["rest"]
+                return
+
+        bitmap = None
+        if self.current_mouth in self.mouths:
+            mouth_dict = self.mouths[self.current_mouth]
+            if self.current_phoneme in mouth_dict:
+                bitmap = mouth_dict[self.current_phoneme]
+            elif "rest" in mouth_dict:
+                bitmap = mouth_dict["rest"]
+            elif mouth_dict:
+                bitmap = list(mouth_dict.values())[0]
+        elif self.mouths:
+            first_mouth = list(self.mouths.keys())[0]
+            bitmap = self.mouths[first_mouth].get("rest")
+
         self.scene().clear()
-        bitmap = bitmap.scaled(self.sceneRect().width() or 200, self.sceneRect().height() or 200,
-                               QtCore.Qt.KeepAspectRatio)
-        self.scene().addPixmap(bitmap)
-        if self.current_phoneme not in self.mouths[self.current_mouth].keys():
-            self.scene().addText(self.translator.translate("MouthView", "Missing Mouth: {0}").format(self.current_phoneme), QtGui.QFont("Swiss", 14))
+        if bitmap and not bitmap.isNull():
+            target_w = self.sceneRect().width() or self.width() or 200
+            target_h = self.sceneRect().height() or self.height() or 200
+            scaled_bitmap = bitmap.scaled(int(target_w), int(target_h), QtCore.Qt.KeepAspectRatio)
+            self.scene().addPixmap(scaled_bitmap)
+
+        if self.current_mouth in self.mouths and self.current_phoneme not in self.mouths[self.current_mouth]:
+            self.scene().addText(
+                self.translator.translate("MouthView", "Missing Mouth: {0}").format(self.current_phoneme),
+                QtGui.QFont("Swiss", 14)
+            )
+
         self.fitInView(self.x(), self.y(), self.width(), self.height())
+        self._last_rendered_mouth = self.current_mouth
+        self._last_rendered_phoneme = self.current_phoneme
 
     def set_frame(self, frame):
         self.old_frame = self.cur_frame
@@ -78,25 +130,39 @@ class MouthView(QtWidgets.QGraphicsView):
 
     def set_phoneme_picture(self, phoneme):
         if not self.current_mouth:
-            self.current_mouth = list(self.mouths)[0]
-        if self.current_mouth in self.mouths.keys():
-            if phoneme in self.mouths[self.current_mouth].keys():
+            self.current_mouth = list(self.mouths.keys())[0] if self.mouths else None
+        if not self.current_mouth:
+            return
+
+        bitmap = None
+        if self.current_mouth in self.mouths:
+            if phoneme in self.mouths[self.current_mouth]:
                 bitmap = self.mouths[self.current_mouth][phoneme]
             else:
-                bitmap = self.mouths[self.current_mouth]["rest"]
-        else:
-            bitmap = self.mouths[list(self.mouths)[0]]["rest"]
+                bitmap = self.mouths[self.current_mouth].get("rest")
+        elif self.mouths:
+            first_mouth = list(self.mouths.keys())[0]
+            bitmap = self.mouths[first_mouth].get("rest")
+
         self.scene().clear()
-        bitmap = bitmap.scaled(self.sceneRect().width() or 200, self.sceneRect().height() or 200,
-                               QtCore.Qt.KeepAspectRatio)
-        self.scene().addPixmap(bitmap)
-        if phoneme not in self.mouths[self.current_mouth].keys():
-            self.scene().addText(self.translator.translate("MouthView", "Missing Mouth: {0}").format(phoneme), QtGui.QFont("Swiss", 14))
+        if bitmap and not bitmap.isNull():
+            target_w = self.sceneRect().width() or self.width() or 200
+            target_h = self.sceneRect().height() or self.height() or 200
+            scaled_bitmap = bitmap.scaled(int(target_w), int(target_h), QtCore.Qt.KeepAspectRatio)
+            self.scene().addPixmap(scaled_bitmap)
+
+        if self.current_mouth in self.mouths and phoneme not in self.mouths[self.current_mouth]:
+            self.scene().addText(
+                self.translator.translate("MouthView", "Missing Mouth: {0}").format(phoneme),
+                QtGui.QFont("Swiss", 14)
+            )
+
         self.fitInView(self.x(), self.y(), self.width(), self.height())
+        self._last_rendered_phoneme = phoneme
 
     def set_document(self, doc):
         self.doc = doc
-        self.draw_me()
+        self.draw_me(force=True)
 
     def process_mouth_dir(self, dir_name, names, supported_imagetypes):
         has_images = False
@@ -124,12 +190,19 @@ class MouthView(QtWidgets.QGraphicsView):
     def add_mouth(self, dir_name, names):
         bitmaps = {}
         for files in names:
-            if ".svn" in files:
+            if ".svn" in files or files.startswith("."):
                 continue
             path = os.path.normpath(os.path.join(dir_name, files))
-            bitmaps[files.split('.')[0]] = QtGui.QPixmap(path)
-        self.mouths[os.path.basename(dir_name)] = bitmaps
-        if self.current_mouth is None:
-            self.current_mouth = os.path.basename(dir_name)
+            name_key = files.rsplit('.', 1)[0]
+            pix = QtGui.QPixmap(path)
+            if not pix.isNull():
+                bitmaps[name_key] = pix
+
+        if bitmaps:
+            folder_name = os.path.basename(dir_name)
+            self.mouths[folder_name] = bitmaps
+            self.mouth_directories[folder_name] = os.path.normpath(dir_name)
+            if self.current_mouth is None:
+                self.current_mouth = folder_name
 
 # end of class MouthView

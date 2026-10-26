@@ -671,34 +671,153 @@ class LipSyncObject(NodeMixin):
         out_file.write("{:d} {}\n".format(end_frame + 2, "rest"))
         out_file.close()
 
-    def export_images(self, path, currentmouth):
-        if not self.config.value("MouthDir"):
-            print("Use normal procedure.\n")
-            phonemedict = {}
-            for files in os.listdir(os.path.join(utilities.get_main_dir(), "rsrc", "mouths", currentmouth)):
-                phonemedict[os.path.splitext(files)[0]] = os.path.splitext(files)[1]
-            for phoneme in self.leaves:
-                try:
-                    shutil.copy(os.path.join(utilities.get_main_dir(), "rsrc", "mouths", currentmouth) + "/" +
-                                phoneme.text + phonemedict[phoneme.text],
-                                path + str(phoneme.start_frame).rjust(6, '0') +
-                                phoneme.text + phonemedict[phoneme.text])
-                except KeyError:
-                    print("Phoneme \'{0}\' does not exist in chosen directory.".format(phoneme.text))
+    def export_images(self, path, currentmouth="", format_choice="PNG", fallback_to_rest=True, fps=None, mouth_dir=None):
+        """
+        Export image sequence or animated file adhering to DJV-compatible naming (<name>_0001.<ext>).
+        Renders every frame across the audio duration, respecting active mouth set and fallback rules.
+        """
+        # 1. Resolve active mouth directory
+        resolved_mouth_dir = mouth_dir
+        if not resolved_mouth_dir or not os.path.isdir(resolved_mouth_dir):
+            if currentmouth:
+                standard_dir = os.path.join(utilities.get_main_dir(), "rsrc", "mouths", currentmouth)
+                if os.path.isdir(standard_dir):
+                    resolved_mouth_dir = standard_dir
+        if not resolved_mouth_dir or not os.path.isdir(resolved_mouth_dir):
+            cfg_dir = self.config.value("MouthDir")
+            if cfg_dir and os.path.isdir(cfg_dir):
+                resolved_mouth_dir = cfg_dir
+        if not resolved_mouth_dir or not os.path.isdir(resolved_mouth_dir):
+            base_mouths = os.path.join(utilities.get_main_dir(), "rsrc", "mouths")
+            if os.path.isdir(base_mouths):
+                subdirs = [os.path.join(base_mouths, d) for d in os.listdir(base_mouths) if os.path.isdir(os.path.join(base_mouths, d))]
+                if subdirs:
+                    resolved_mouth_dir = subdirs[0]
 
+        if not resolved_mouth_dir or not os.path.isdir(resolved_mouth_dir):
+            print(f"[export_images] Could not find valid mouth directory for '{currentmouth}'")
+            return 0
+
+        # 2. Index mouth images (case-insensitive)
+        mouth_files = {}
+        for fname in os.listdir(resolved_mouth_dir):
+            if fname.startswith(".") or ".svn" in fname:
+                continue
+            base, ext = os.path.splitext(fname)
+            if ext.lower() in (".png", ".jpg", ".jpeg", ".bmp"):
+                mouth_files[base.lower()] = os.path.join(resolved_mouth_dir, fname)
+
+        if not mouth_files:
+            print(f"[export_images] No supported mouth image files found in '{resolved_mouth_dir}'")
+            return 0
+
+        # 3. Determine frame duration
+        total_frames = 0
+        if getattr(self, "sound_duration", 0) > 0:
+            total_frames = int(self.sound_duration)
+        elif hasattr(self, "root") and getattr(self.root, "sound_duration", 0) > 0:
+            total_frames = int(self.root.sound_duration)
+        elif self.leaves:
+            total_frames = max(p.end_frame for p in self.leaves) + 1
         else:
-            print("Use this dir: {}\n".format(self.config.value("MouthDir")))
-            phonemedict = {}
-            for files in os.listdir(self.config.value("MouthDir")):
-                phonemedict[os.path.splitext(files)[0]] = os.path.splitext(files)[1]
-            for phoneme in self.leaves:
-                try:
-                    shutil.copy(
-                        "{}/{}{}".format(self.config.value("MouthDir"), phoneme.text, phonemedict[phoneme.text]),
-                        "{}{}{}{}".format(path, str(phoneme.start_frame).rjust(6, "0"), phoneme.text,
-                                          phonemedict[phoneme.text]))
-                except KeyError:
-                    print("Phoneme \'{0}\' does not exist in chosen directory.".format(phoneme.text))
+            total_frames = int(self.config.value("FPS", 24)) * 3
+
+        effective_fps = fps or getattr(self, "fps", None) or int(self.config.value("FPS", 24))
+
+        # 4. Resolve frame-by-frame images
+        frame_image_paths = []
+        last_valid_img = None
+        rest_img = mouth_files.get("rest") or mouth_files.get("x")
+        if not rest_img and mouth_files:
+            rest_img = list(mouth_files.values())[0]
+
+        for frame_idx in range(total_frames):
+            phoneme = self.get_phoneme_at_frame(frame_idx)
+            img = mouth_files.get(phoneme.lower() if phoneme else "rest")
+            if not img and phoneme:
+                if phoneme.lower() in ("rest", "x"):
+                    img = rest_img
+            if not img:
+                if fallback_to_rest:
+                    img = rest_img
+                else:
+                    img = last_valid_img or rest_img
+
+            if img:
+                last_valid_img = img
+            else:
+                img = rest_img
+
+            frame_image_paths.append(img)
+
+        # 5. Export format handling
+        format_upper = (format_choice or "PNG").upper()
+        dir_name = os.path.dirname(os.path.abspath(path))
+        if not os.path.exists(dir_name):
+            os.makedirs(dir_name, exist_ok=True)
+        base_stem = os.path.splitext(os.path.basename(path))[0]
+
+        if format_upper in ("PNG", "JPG", "JPEG"):
+            ext = ".png" if "PNG" in format_upper else ".jpg"
+            for frame_idx, src_img in enumerate(frame_image_paths):
+                out_name = f"{base_stem}_{frame_idx + 1:04d}{ext}"
+                out_path = os.path.join(dir_name, out_name)
+                if src_img.lower().endswith(ext):
+                    shutil.copy2(src_img, out_path)
+                else:
+                    try:
+                        from PIL import Image
+                        im = Image.open(src_img)
+                        if ext == ".jpg" and im.mode in ("RGBA", "LA", "P"):
+                            rgb_im = Image.new("RGB", im.size, (255, 255, 255))
+                            rgb_im.paste(im, mask=im.split()[-1] if im.mode == "RGBA" else None)
+                            rgb_im.save(out_path, quality=95)
+                        else:
+                            im.save(out_path)
+                    except Exception:
+                        try:
+                            from PySide6 import QtGui
+                            pix = QtGui.QPixmap(src_img)
+                            pix.save(out_path)
+                        except Exception:
+                            shutil.copy2(src_img, out_path)
+            return len(frame_image_paths)
+
+        elif format_upper in ("GIF", "APNG"):
+            target_ext = ".gif" if format_upper == "GIF" else ".png"
+            out_file = path if path.lower().endswith(target_ext) else path + target_ext
+            try:
+                from PIL import Image
+                pil_frames = [Image.open(p).convert("RGBA") for p in frame_image_paths]
+                duration_ms = max(20, int(round(1000.0 / float(effective_fps))))
+                if format_upper == "GIF":
+                    gif_frames = []
+                    for img in pil_frames:
+                        bg = Image.new("RGBA", img.size, (255, 255, 255, 255))
+                        bg.paste(img, (0, 0), img)
+                        gif_frames.append(bg.convert("RGB"))
+                    gif_frames[0].save(
+                        out_file,
+                        save_all=True,
+                        append_images=gif_frames[1:],
+                        duration=duration_ms,
+                        loop=0
+                    )
+                else:
+                    pil_frames[0].save(
+                        out_file,
+                        save_all=True,
+                        append_images=pil_frames[1:],
+                        duration=duration_ms,
+                        loop=0
+                    )
+                return len(frame_image_paths)
+            except Exception as e:
+                print(f"[export_images] Pillow animated export: {e}, saving image sequence fallback.")
+                for frame_idx, src_img in enumerate(frame_image_paths):
+                    out_name = f"{base_stem}_{frame_idx + 1:04d}.png"
+                    shutil.copy2(src_img, os.path.join(dir_name, out_name))
+                return len(frame_image_paths)
 
     def export_alelo(self, path, language, languagemanager):
         out_file = open(path, 'w')
@@ -1078,46 +1197,121 @@ class LipsyncDoc:
             self.parent.phonemeset.selected_set = new_set
             self.parent.main_window.waveform_view.set_document(self, force=True, clear_scene=True)
 
-    def convert_to_phonemeset(self):
-        # The base set is the CMU39 set, we will convert everything to that and from it to the desired one for now
-        new_set = self.parent.main_window.phoneme_set.currentText()
-        old_set = self.parent.phonemeset.selected_set
-        conversion_dict = {}
-        if old_set != new_set:
-            new_map = PhonemeSet()
-            new_map.load(new_set)
-            for conversion_name in new_map.alternate_conversions:
-                if conversion_name.startswith(old_set.lower()):
-                    print(conversion_name)
-                    conversion_dict = new_map.alternate_conversions[conversion_name]
-            if conversion_dict:
-                print(conversion_dict)
-                for voice in self.project_node.children:
-                    for phrase in voice.children:
-                        for word in phrase.children:
-                            for phoneme in word.children:
-                                phoneme.text = conversion_dict.get(phoneme.text, "rest")
-                self.dirty = True
-                self.parent.phonemeset.selected_set = new_set
+    def convert_to_phonemeset(self, target_set=None, source_set=None):
+        """
+        Convert project phonemes to target phoneme set bidirectionally (e.g. Preston Blair <-> Rhubarb).
+        Refreshes waveform movable buttons and mouth view.
+        """
+        if not target_set and self.parent and hasattr(self.parent, "main_window"):
+            target_set = self.parent.main_window.phoneme_set.currentText()
+        if not target_set:
+            return 0
+
+        old_set = source_set
+        if not old_set:
+            if getattr(self, "current_phonemeset", None):
+                old_set = self.current_phonemeset
+            elif self.parent and hasattr(self.parent, "phonemeset") and hasattr(self.parent.phonemeset, "selected_set"):
+                old_set = self.parent.phonemeset.selected_set
+
+        # Auto-detect source set from existing phonemes if not specified or identical
+        if not old_set or (old_set.lower().replace(" ", "_") == target_set.lower().replace(" ", "_")):
+            sample_phonemes = set()
+            for voice in self.project_node.children:
+                for phrase in voice.children:
+                    for word in phrase.children:
+                        for phoneme in word.children:
+                            sample_phonemes.add(phoneme.text)
+                            if len(sample_phonemes) > 20:
+                                break
+            if any(p in sample_phonemes for p in ("AI", "MBP", "WQ", "FV", "etc")):
+                old_set = "preston_blair"
+            elif any(p in sample_phonemes for p in ("AA", "EHSZ", "NLTDR")):
+                old_set = "fleming_dobbs"
+            elif any(p in sample_phonemes for p in ("A", "B", "C", "D", "G", "H")):
+                old_set = "rhubarb"
+            else:
+                old_set = old_set or "preston_blair"
+
+        old_norm = old_set.lower().replace(" ", "_")
+        new_norm = target_set.lower().replace(" ", "_")
+
+        if old_norm == new_norm:
+            return 0
+
+        # Predefined bidirectional mappings for standard kits
+        BUILTIN_CONVERSIONS = {
+            ("preston_blair", "rhubarb"): {
+                "AI": "D", "E": "C", "etc": "B", "FV": "G", "L": "H",
+                "MBP": "A", "O": "E", "U": "F", "WQ": "F", "rest": "rest", "X": "rest"
+            },
+            ("rhubarb", "preston_blair"): {
+                "A": "MBP", "B": "etc", "C": "E", "D": "AI", "E": "O",
+                "F": "WQ", "G": "FV", "H": "L", "X": "rest", "rest": "rest"
+            },
+            ("fleming_dobbs", "rhubarb"): {
+                "AA": "D", "EHSZ": "C", "FV": "G", "GK": "C", "IY": "B",
+                "MBP": "A", "NLTDR": "C", "O": "E", "SH": "G", "TH": "C", "rest": "rest"
+            },
+            ("rhubarb", "fleming_dobbs"): {
+                "A": "MBP", "B": "IY", "C": "EHSZ", "D": "AA", "E": "O",
+                "F": "O", "G": "FV", "H": "TH", "X": "rest", "rest": "rest"
+            },
+            ("fleming_dobbs", "preston_blair"): {
+                "AA": "AI", "EHSZ": "E", "FV": "FV", "GK": "E", "IY": "E",
+                "MBP": "MBP", "NLTDR": "L", "O": "O", "SH": "etc", "TH": "L", "rest": "rest"
+            },
+            ("preston_blair", "fleming_dobbs"): {
+                "AI": "AA", "E": "EHSZ", "etc": "SH", "FV": "FV", "L": "TH",
+                "MBP": "MBP", "O": "O", "U": "O", "WQ": "O", "rest": "rest"
+            }
+        }
+
+        conversion_dict = BUILTIN_CONVERSIONS.get((old_norm, new_norm))
+        if not conversion_dict:
+            # Check phoneme definition JSON files
+            try:
+                target_file = os.path.join(utilities.get_main_dir(), "phonemes", f"{new_norm}.json")
+                if os.path.isfile(target_file):
+                    with open(target_file, "r") as tf:
+                        data = json.load(tf)
+                        for k, v in data.items():
+                            if k.startswith(old_norm):
+                                conversion_dict = v
+                                break
+            except Exception as e:
+                print(f"[convert_to_phonemeset] JSON load note: {e}")
+
+        if not conversion_dict:
+            print(f"[convert_to_phonemeset] No direct conversion found between '{old_norm}' and '{new_norm}'")
+            return 0
+
+        converted_count = 0
+        for voice in self.project_node.children:
+            for phrase in voice.children:
+                for word in phrase.children:
+                    for phoneme in word.children:
+                        target_val = (
+                            conversion_dict.get(phoneme.text) or
+                            conversion_dict.get(phoneme.text.upper()) or
+                            conversion_dict.get(phoneme.text.lower())
+                        )
+                        if target_val:
+                            phoneme.text = target_val
+                            converted_count += 1
+
+        self.dirty = True
+        self.current_phonemeset = target_set
+        if self.parent and hasattr(self.parent, "phonemeset"):
+            self.parent.phonemeset.selected_set = target_set
+            if hasattr(self.parent, "main_window"):
+                idx = self.parent.main_window.phoneme_set.findText(target_set)
+                if idx >= 0:
+                    self.parent.main_window.phoneme_set.setCurrentIndex(idx)
                 self.parent.main_window.waveform_view.set_document(self, force=True, clear_scene=True)
-            # if old_set != "CMU_39":
-            #     conversion_map_to_cmu = {v: k for k, v in self.parent.phonemeset.conversion.items()}
-            #     for voice in self.project_node.children:
-            #         for phrase in voice.children:
-            #             for word in phrase.children:
-            #                 for phoneme in word.children:
-            #                     phoneme.text = conversion_map_to_cmu.get(phoneme.text, "rest")
-            # new_map = PhonemeSet()
-            # new_map.load(new_set)
-            # conversion_map_from_cmu = new_map.conversion
-            # for voice in self.project_node.children:
-            #     for phrase in voice.children:
-            #         for word in phrase.children:
-            #             for phoneme in word.children:
-            #                 phoneme.text = conversion_map_from_cmu.get(phoneme.text, "rest")
-            # self.dirty = True
-            # self.parent.phonemeset.selected_set = new_set
-            # self.parent.main_window.waveform_view.set_document(self, force=True, clear_scene=True)
+                self.parent.main_window.mouth_view.draw_me(force=True)
+
+        return converted_count
 
     def auto_recognize_phoneme(self, manual_invoke=False):
         if self.settings.value("/VoiceRecognition/run_voice_recognition", "true").lower() == "true" or manual_invoke:
