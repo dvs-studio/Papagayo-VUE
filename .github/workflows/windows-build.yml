@@ -42,6 +42,8 @@ jobs:
       - name: Run Environment & Module Pre-Build Diagnostics
         shell: cmd
         run: |
+          chcp 65001 >nul
+          set PYTHONIOENCODING=utf-8
           python diagnose_crash.py
 
       - name: Build Executables via build_windows.py
