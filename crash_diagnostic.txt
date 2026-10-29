@@ -1,0 +1,18 @@
+Papagayo-VUE Crash Report (Victory Ukpong, 2026)
+==================================================
+Traceback (most recent call last):
+  File "C:\Users\Dell\Downloads\repository\papagayo-ng.py", line 14, in <module>
+    runpy.run_path(target, run_name="__main__")
+  File "<frozen runpy>", line 286, in run_path
+  File "<frozen runpy>", line 98, in _run_module_code
+  File "<frozen runpy>", line 88, in _run_code
+  File "C:\Users\Dell\Downloads\repository\papagayo-vue.py", line 203, in <module>
+    main()
+  File "C:\Users\Dell\Downloads\repository\papagayo-vue.py", line 196, in main
+    papagayo_window = LipsyncFrameQT.LipsyncFrame()
+                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Dell\Downloads\repository\LipsyncFrameQT.py", line 623, in __init__
+    self.ffmpeg_action = QtWidgets.QAction("Download FFmpeg")
+                         ^^^^^^^^^^^^^^^^^
+AttributeError: module 'PySide6.QtWidgets' has no attribute 'QAction'
+

@@ -1,0 +1,95 @@
+/* Light Theme for Papagayo-NG */
+QMainWindow, QDialog, QWidget#centralwidget {
+    background-color: #f8fafc;
+    color: #0f172a;
+}
+QWidget {
+    font-family: "Segoe UI", "San Francisco", "Helvetica Neue", sans-serif;
+    font-size: 10pt;
+    color: #0f172a;
+}
+QMenuBar {
+    background-color: #f1f5f9;
+    color: #0f172a;
+    border-bottom: 1px solid #cbd5e1;
+}
+QMenuBar::item:selected {
+    background-color: #e2e8f0;
+}
+QMenu {
+    background-color: #ffffff;
+    color: #0f172a;
+    border: 1px solid #cbd5e1;
+}
+QMenu::item:selected {
+    background-color: #3b82f6;
+    color: #ffffff;
+}
+QToolBar {
+    background-color: #f1f5f9;
+    border-bottom: 1px solid #cbd5e1;
+    spacing: 4px;
+    padding: 2px;
+}
+QPushButton {
+    background-color: #ffffff;
+    border: 1px solid #cbd5e1;
+    border-radius: 4px;
+    padding: 4px 12px;
+    color: #0f172a;
+    font-weight: 500;
+}
+QPushButton:hover {
+    background-color: #f1f5f9;
+    border-color: #94a3b8;
+}
+QPushButton:pressed {
+    background-color: #e2e8f0;
+}
+QLineEdit, QTextEdit, QPlainTextEdit, QSpinBox, QDoubleSpinBox, QComboBox {
+    background-color: #ffffff;
+    border: 1px solid #cbd5e1;
+    border-radius: 4px;
+    padding: 3px 6px;
+    color: #0f172a;
+}
+QComboBox::drop-down {
+    border-left: 1px solid #cbd5e1;
+}
+QTabWidget::pane {
+    border: 1px solid #cbd5e1;
+    background-color: #ffffff;
+}
+QTabBar::tab {
+    background-color: #e2e8f0;
+    border: 1px solid #cbd5e1;
+    padding: 6px 12px;
+    margin-right: 2px;
+    border-top-left-radius: 4px;
+    border-top-right-radius: 4px;
+    color: #475569;
+}
+QTabBar::tab:selected {
+    background-color: #ffffff;
+    color: #0f172a;
+    border-bottom-color: #ffffff;
+    font-weight: 600;
+}
+QScrollBar:vertical {
+    border: none;
+    background: #f1f5f9;
+    width: 10px;
+}
+QScrollBar::handle:vertical {
+    background: #cbd5e1;
+    border-radius: 5px;
+    min-height: 20px;
+}
+QScrollBar::handle:vertical:hover {
+    background: #94a3b8;
+}
+QStatusBar {
+    background-color: #f1f5f9;
+    color: #64748b;
+    border-top: 1px solid #cbd5e1;
+}

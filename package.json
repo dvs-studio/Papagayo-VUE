@@ -1,0 +1,10 @@
+{
+  "name": "papagayo-vue",
+  "version": "2.0.0",
+  "description": "Papagayo-VUE Lip-Sync Animation Studio (Redeveloped by Victory Ukpong, 2026)",
+  "scripts": {
+    "dev": "python3 main.py",
+    "start": "python3 main.py",
+    "build": "python3 -c 'import app, main; print(\"Build check OK\")'"
+  }
+}

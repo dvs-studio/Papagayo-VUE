@@ -1,0 +1,1022 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
+ <class>main_window</class>
+ <widget class="QMainWindow" name="main_window">
+  <property name="geometry">
+   <rect>
+    <x>0</x>
+    <y>0</y>
+    <width>1028</width>
+    <height>768</height>
+   </rect>
+  </property>
+  <property name="acceptDrops">
+   <bool>true</bool>
+  </property>
+  <property name="windowTitle">
+   <string>MainWindow</string>
+  </property>
+  <property name="windowIcon">
+   <iconset resource="../qt-icons.qrc">
+    <normaloff>:/rsrc/window_icon.png</normaloff>:/rsrc/window_icon.png</iconset>
+  </property>
+  <widget class="QWidget" name="central_widget">
+   <property name="acceptDrops">
+    <bool>true</bool>
+   </property>
+   <layout class="QVBoxLayout" name="verticalLayout_5">
+    <property name="sizeConstraint">
+     <enum>QLayout::SetMinimumSize</enum>
+    </property>
+    <item>
+     <layout class="QHBoxLayout" name="horizontal_layout" stretch="0,0,0">
+      <property name="sizeConstraint">
+       <enum>QLayout::SetFixedSize</enum>
+      </property>
+      <item>
+       <widget class="QGroupBox" name="vertical_layout_left">
+        <property name="enabled">
+         <bool>false</bool>
+        </property>
+        <layout class="QVBoxLayout" name="vertical_layout_left_1" stretch="2,0">
+         <item>
+          <widget class="WaveformView" name="waveform_view">
+           <property name="minimumSize">
+            <size>
+             <width>0</width>
+             <height>150</height>
+            </size>
+           </property>
+           <property name="frameShape">
+            <enum>QFrame::StyledPanel</enum>
+           </property>
+           <property name="frameShadow">
+            <enum>QFrame::Sunken</enum>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QTabWidget" name="current_voice">
+           <property name="sizePolicy">
+            <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
+             <horstretch>0</horstretch>
+             <verstretch>0</verstretch>
+            </sizepolicy>
+           </property>
+           <property name="minimumSize">
+            <size>
+             <width>0</width>
+             <height>320</height>
+            </size>
+           </property>
+           <property name="autoFillBackground">
+            <bool>false</bool>
+           </property>
+           <property name="tabShape">
+            <enum>QTabWidget::Rounded</enum>
+           </property>
+           <property name="elideMode">
+            <enum>Qt::ElideNone</enum>
+           </property>
+           <property name="documentMode">
+            <bool>true</bool>
+           </property>
+           <property name="movable">
+            <bool>false</bool>
+           </property>
+           <widget class="QWidget" name="current_voice_page">
+            <attribute name="title">
+             <string/>
+            </attribute>
+            <layout class="QVBoxLayout" name="current_voice_page_layout">
+             <item>
+              <widget class="QGroupBox" name="voice_name_layout">
+               <property name="sizePolicy">
+                <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
+                 <horstretch>0</horstretch>
+                 <verstretch>0</verstretch>
+                </sizepolicy>
+               </property>
+               <layout class="QHBoxLayout" name="horizontalLayout_4">
+                <property name="leftMargin">
+                 <number>0</number>
+                </property>
+                <property name="topMargin">
+                 <number>0</number>
+                </property>
+                <property name="rightMargin">
+                 <number>0</number>
+                </property>
+                <property name="bottomMargin">
+                 <number>0</number>
+                </property>
+                <item>
+                 <widget class="QLabel" name="voice_name">
+                  <property name="sizePolicy">
+                   <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
+                    <horstretch>0</horstretch>
+                    <verstretch>0</verstretch>
+                   </sizepolicy>
+                  </property>
+                  <property name="text">
+                   <string>Voice Name:</string>
+                  </property>
+                 </widget>
+                </item>
+                <item>
+                 <widget class="QLineEdit" name="voice_name_input">
+                  <property name="sizePolicy">
+                   <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
+                    <horstretch>0</horstretch>
+                    <verstretch>0</verstretch>
+                   </sizepolicy>
+                  </property>
+                  <property name="minimumSize">
+                   <size>
+                    <width>160</width>
+                    <height>0</height>
+                   </size>
+                  </property>
+                 </widget>
+                </item>
+                <item>
+                 <spacer name="voice_name_spacer_right">
+                  <property name="orientation">
+                   <enum>Qt::Horizontal</enum>
+                  </property>
+                  <property name="sizeHint" stdset="0">
+                   <size>
+                    <width>40</width>
+                    <height>20</height>
+                   </size>
+                  </property>
+                 </spacer>
+                </item>
+               </layout>
+              </widget>
+             </item>
+             <item>
+              <widget class="QGroupBox" name="text_input_group">
+               <property name="title">
+                <string>Spoken Text:</string>
+               </property>
+               <layout class="QVBoxLayout" name="verticalLayout_2">
+                <item>
+                 <widget class="QTextEdit" name="text_edit"/>
+                </item>
+               </layout>
+              </widget>
+             </item>
+             <item>
+              <widget class="QGroupBox" name="phoneme_group">
+               <property name="title">
+                <string>Phonetic Breakdown:</string>
+               </property>
+               <layout class="QHBoxLayout" name="phoneme_layout">
+                <item>
+                 <widget class="QComboBox" name="language_choice"/>
+                </item>
+                <item>
+                 <widget class="QComboBox" name="phoneme_set"/>
+                </item>
+                <item>
+                 <spacer name="phoneme_spacer_middle">
+                  <property name="orientation">
+                   <enum>Qt::Horizontal</enum>
+                  </property>
+                  <property name="sizeType">
+                   <enum>QSizePolicy::Fixed</enum>
+                  </property>
+                  <property name="sizeHint" stdset="0">
+                   <size>
+                    <width>40</width>
+                    <height>20</height>
+                   </size>
+                  </property>
+                 </spacer>
+                </item>
+                <item>
+                 <widget class="QPushButton" name="breakdown_button">
+                  <property name="text">
+                   <string>Breakdown</string>
+                  </property>
+                  <property name="icon">
+                   <iconset resource="../qt-icons.qrc">
+                    <normaloff>:/rsrc/icons/pie-chart-line.png</normaloff>:/rsrc/icons/pie-chart-line.png</iconset>
+                  </property>
+                 </widget>
+                </item>
+                <item>
+                 <widget class="QPushButton" name="reload_dict_button">
+                  <property name="text">
+                   <string>Reload Dictionary</string>
+                  </property>
+                  <property name="icon">
+                   <iconset resource="../qt-icons.qrc">
+                    <normaloff>:/rsrc/icons/refresh-line.png</normaloff>:/rsrc/icons/refresh-line.png</iconset>
+                  </property>
+                 </widget>
+                </item>
+                <item>
+                 <widget class="QPushButton" name="spread_out">
+                  <property name="text">
+                   <string>Spread Out</string>
+                  </property>
+                  <property name="icon">
+                   <iconset resource="../qt-icons.qrc">
+                    <normaloff>:/rsrc/icons/arrow-left-right-line.png</normaloff>:/rsrc/icons/arrow-left-right-line.png</iconset>
+                  </property>
+                 </widget>
+                </item>
+                <item>
+                 <spacer name="phoneme_spacer_right">
+                  <property name="orientation">
+                   <enum>Qt::Horizontal</enum>
+                  </property>
+                  <property name="sizeHint" stdset="0">
+                   <size>
+                    <width>40</width>
+                    <height>20</height>
+                   </size>
+                  </property>
+                 </spacer>
+                </item>
+                <item>
+                 <widget class="QToolButton" name="voice_recognition_button">
+                  <property name="text">
+                   <string>Voice Recognition</string>
+                  </property>
+                  <property name="icon">
+                   <iconset resource="../qt-icons.qrc">
+                    <normaloff>:/rsrc/icons/voice-recognition-fill.png</normaloff>:/rsrc/icons/voice-recognition-fill.png</iconset>
+                  </property>
+                  <property name="popupMode">
+                   <enum>QToolButton::MenuButtonPopup</enum>
+                  </property>
+                  <property name="toolButtonStyle">
+                   <enum>Qt::ToolButtonTextBesideIcon</enum>
+                  </property>
+                  <property name="arrowType">
+                   <enum>Qt::NoArrow</enum>
+                  </property>
+                 </widget>
+                </item>
+               </layout>
+              </widget>
+             </item>
+             <item>
+              <widget class="QGroupBox" name="export_group">
+               <property name="autoFillBackground">
+                <bool>false</bool>
+               </property>
+               <property name="title">
+                <string>Export</string>
+               </property>
+               <property name="flat">
+                <bool>false</bool>
+               </property>
+               <property name="checkable">
+                <bool>false</bool>
+               </property>
+               <layout class="QHBoxLayout" name="export_layout">
+                <item>
+                 <widget class="QComboBox" name="export_combo"/>
+                </item>
+                <item>
+                 <spacer name="export_spacer_middle">
+                  <property name="orientation">
+                   <enum>Qt::Horizontal</enum>
+                  </property>
+                  <property name="sizeType">
+                   <enum>QSizePolicy::Fixed</enum>
+                  </property>
+                  <property name="sizeHint" stdset="0">
+                   <size>
+                    <width>40</width>
+                    <height>20</height>
+                   </size>
+                  </property>
+                 </spacer>
+                </item>
+                <item>
+                 <widget class="QPushButton" name="export_button">
+                  <property name="text">
+                   <string>Export</string>
+                  </property>
+                  <property name="icon">
+                   <iconset resource="../qt-icons.qrc">
+                    <normaloff>:/rsrc/icons/share-forward-box-line.png</normaloff>:/rsrc/icons/share-forward-box-line.png</iconset>
+                  </property>
+                 </widget>
+                </item>
+                <item>
+                 <widget class="QPushButton" name="choose_imageset_button">
+                  <property name="text">
+                   <string>Choose Image Set...</string>
+                  </property>
+                  <property name="icon">
+                   <iconset resource="../qt-icons.qrc">
+                    <normaloff>:/rsrc/icons/gallery-line.png</normaloff>:/rsrc/icons/gallery-line.png</iconset>
+                  </property>
+                 </widget>
+                </item>
+                <item>
+                 <spacer name="export_spacer_right">
+                  <property name="orientation">
+                   <enum>Qt::Horizontal</enum>
+                  </property>
+                  <property name="sizeHint" stdset="0">
+                   <size>
+                    <width>40</width>
+                    <height>20</height>
+                   </size>
+                  </property>
+                 </spacer>
+                </item>
+               </layout>
+              </widget>
+             </item>
+            </layout>
+           </widget>
+          </widget>
+         </item>
+        </layout>
+       </widget>
+      </item>
+      <item>
+       <widget class="QGroupBox" name="vertical_layout_right">
+        <property name="enabled">
+         <bool>false</bool>
+        </property>
+        <property name="sizePolicy">
+         <sizepolicy hsizetype="Fixed" vsizetype="Preferred">
+          <horstretch>0</horstretch>
+          <verstretch>0</verstretch>
+         </sizepolicy>
+        </property>
+        <layout class="QVBoxLayout" name="verticalLayout" stretch="0,0,0,0">
+         <property name="spacing">
+          <number>6</number>
+         </property>
+         <property name="sizeConstraint">
+          <enum>QLayout::SetDefaultConstraint</enum>
+         </property>
+         <property name="leftMargin">
+          <number>1</number>
+         </property>
+         <property name="rightMargin">
+          <number>1</number>
+         </property>
+         <item>
+          <widget class="QWidget" name="fps_controls" native="true">
+           <property name="sizePolicy">
+            <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
+             <horstretch>0</horstretch>
+             <verstretch>0</verstretch>
+            </sizepolicy>
+           </property>
+           <layout class="QHBoxLayout" name="fps_layout">
+            <item>
+             <spacer name="fps_spacer_left">
+              <property name="orientation">
+               <enum>Qt::Horizontal</enum>
+              </property>
+              <property name="sizeHint" stdset="0">
+               <size>
+                <width>40</width>
+                <height>20</height>
+               </size>
+              </property>
+             </spacer>
+            </item>
+            <item>
+             <widget class="QLabel" name="fps">
+              <property name="text">
+               <string>FPS:</string>
+              </property>
+             </widget>
+            </item>
+            <item>
+             <widget class="QSpinBox" name="fps_input"/>
+            </item>
+            <item>
+             <widget class="QPushButton" name="apply_fps">
+              <property name="text">
+               <string>Apply</string>
+              </property>
+             </widget>
+            </item>
+            <item>
+             <spacer name="fps_spacer_right">
+              <property name="orientation">
+               <enum>Qt::Horizontal</enum>
+              </property>
+              <property name="sizeHint" stdset="0">
+               <size>
+                <width>40</width>
+                <height>20</height>
+               </size>
+              </property>
+             </spacer>
+            </item>
+           </layout>
+          </widget>
+         </item>
+         <item>
+          <widget class="QComboBox" name="mouth_choice">
+           <property name="sizePolicy">
+            <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
+             <horstretch>0</horstretch>
+             <verstretch>0</verstretch>
+            </sizepolicy>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <layout class="QHBoxLayout" name="mouth_view_layout">
+           <item>
+            <spacer name="mouth_left_spacer">
+             <property name="orientation">
+              <enum>Qt::Horizontal</enum>
+             </property>
+             <property name="sizeHint" stdset="0">
+              <size>
+               <width>0</width>
+               <height>20</height>
+              </size>
+             </property>
+            </spacer>
+           </item>
+           <item>
+            <widget class="MouthView" name="mouth_view">
+             <property name="sizePolicy">
+              <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
+               <horstretch>0</horstretch>
+               <verstretch>0</verstretch>
+              </sizepolicy>
+             </property>
+             <property name="minimumSize">
+              <size>
+               <width>200</width>
+               <height>200</height>
+              </size>
+             </property>
+             <property name="maximumSize">
+              <size>
+               <width>200</width>
+               <height>200</height>
+              </size>
+             </property>
+             <property name="autoFillBackground">
+              <bool>false</bool>
+             </property>
+             <property name="styleSheet">
+              <string notr="true">background-color: rgb(255, 255, 255);</string>
+             </property>
+             <property name="verticalScrollBarPolicy">
+              <enum>Qt::ScrollBarAlwaysOff</enum>
+             </property>
+             <property name="horizontalScrollBarPolicy">
+              <enum>Qt::ScrollBarAlwaysOff</enum>
+             </property>
+             <property name="renderHints">
+              <set>QPainter::Antialiasing|QPainter::SmoothPixmapTransform</set>
+             </property>
+            </widget>
+           </item>
+           <item>
+            <spacer name="mouth_righ_spacer">
+             <property name="orientation">
+              <enum>Qt::Horizontal</enum>
+             </property>
+             <property name="sizeHint" stdset="0">
+              <size>
+               <width>0</width>
+               <height>20</height>
+              </size>
+             </property>
+            </spacer>
+           </item>
+          </layout>
+         </item>
+         <item>
+          <widget class="QGroupBox" name="tag_list_group">
+           <property name="title">
+            <string>Selected Object Tags</string>
+           </property>
+           <layout class="QVBoxLayout" name="verticalLayout_3">
+            <item>
+             <widget class="QSplitter" name="tag_splitter">
+              <property name="frameShape">
+               <enum>QFrame::NoFrame</enum>
+              </property>
+              <property name="midLineWidth">
+               <number>1</number>
+              </property>
+              <property name="orientation">
+               <enum>Qt::Vertical</enum>
+              </property>
+              <property name="opaqueResize">
+               <bool>true</bool>
+              </property>
+              <property name="childrenCollapsible">
+               <bool>false</bool>
+              </property>
+              <widget class="QTreeWidget" name="parent_tags">
+               <property name="enabled">
+                <bool>false</bool>
+               </property>
+               <property name="styleSheet">
+                <string notr="true"/>
+               </property>
+               <property name="showDropIndicator" stdset="0">
+                <bool>false</bool>
+               </property>
+               <property name="alternatingRowColors">
+                <bool>true</bool>
+               </property>
+               <property name="selectionMode">
+                <enum>QAbstractItemView::NoSelection</enum>
+               </property>
+               <property name="verticalScrollMode">
+                <enum>QAbstractItemView::ScrollPerPixel</enum>
+               </property>
+               <property name="rootIsDecorated">
+                <bool>false</bool>
+               </property>
+               <property name="itemsExpandable">
+                <bool>false</bool>
+               </property>
+               <property name="headerHidden">
+                <bool>true</bool>
+               </property>
+               <property name="expandsOnDoubleClick">
+                <bool>false</bool>
+               </property>
+               <property name="columnCount">
+                <number>1</number>
+               </property>
+               <attribute name="headerDefaultSectionSize">
+                <number>200</number>
+               </attribute>
+               <attribute name="headerStretchLastSection">
+                <bool>true</bool>
+               </attribute>
+               <column>
+                <property name="text">
+                 <string notr="true">1</string>
+                </property>
+               </column>
+              </widget>
+              <widget class="QLineEdit" name="tag_entry">
+               <property name="sizePolicy">
+                <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
+                 <horstretch>0</horstretch>
+                 <verstretch>1</verstretch>
+                </sizepolicy>
+               </property>
+               <property name="maximumSize">
+                <size>
+                 <width>16777215</width>
+                 <height>20</height>
+                </size>
+               </property>
+               <property name="baseSize">
+                <size>
+                 <width>0</width>
+                 <height>20</height>
+                </size>
+               </property>
+              </widget>
+              <widget class="QListWidget" name="list_of_tags"/>
+              <widget class="QWidget" name="layoutWidget">
+               <layout class="QHBoxLayout" name="tag_list_buttons">
+                <property name="sizeConstraint">
+                 <enum>QLayout::SetMaximumSize</enum>
+                </property>
+                <item>
+                 <widget class="QPushButton" name="add_tag">
+                  <property name="maximumSize">
+                   <size>
+                    <width>16777215</width>
+                    <height>23</height>
+                   </size>
+                  </property>
+                  <property name="text">
+                   <string>Add</string>
+                  </property>
+                 </widget>
+                </item>
+                <item>
+                 <widget class="QPushButton" name="remove_tag">
+                  <property name="maximumSize">
+                   <size>
+                    <width>16777215</width>
+                    <height>23</height>
+                   </size>
+                  </property>
+                  <property name="text">
+                   <string>Remove</string>
+                  </property>
+                 </widget>
+                </item>
+               </layout>
+              </widget>
+             </widget>
+            </item>
+            <item>
+             <layout class="QHBoxLayout" name="horizontalLayout">
+              <item>
+               <widget class="QComboBox" name="voice_for_selection"/>
+              </item>
+              <item>
+               <widget class="QPushButton" name="apply_voice_change">
+                <property name="text">
+                 <string>Change Voice</string>
+                </property>
+               </widget>
+              </item>
+             </layout>
+            </item>
+           </layout>
+          </widget>
+         </item>
+        </layout>
+       </widget>
+      </item>
+      <item>
+       <widget class="QSlider" name="volume_slider">
+        <property name="enabled">
+         <bool>false</bool>
+        </property>
+        <property name="value">
+         <number>50</number>
+        </property>
+        <property name="orientation">
+         <enum>Qt::Vertical</enum>
+        </property>
+        <property name="invertedAppearance">
+         <bool>false</bool>
+        </property>
+        <property name="tickPosition">
+         <enum>QSlider::TicksBelow</enum>
+        </property>
+        <property name="tickInterval">
+         <number>10</number>
+        </property>
+       </widget>
+      </item>
+     </layout>
+    </item>
+   </layout>
+  </widget>
+  <widget class="QMenuBar" name="menubar">
+   <property name="geometry">
+    <rect>
+     <x>0</x>
+     <y>0</y>
+     <width>1028</width>
+     <height>21</height>
+    </rect>
+   </property>
+   <widget class="QMenu" name="menu_file">
+    <property name="title">
+     <string>&amp;File</string>
+    </property>
+    <addaction name="action_open"/>
+    <addaction name="action_save"/>
+    <addaction name="action_save_as"/>
+    <addaction name="action_exit"/>
+   </widget>
+   <widget class="QMenu" name="menu_edit">
+    <property name="enabled">
+     <bool>true</bool>
+    </property>
+    <property name="title">
+     <string>&amp;Edit</string>
+    </property>
+    <addaction name="action_undo"/>
+    <addaction name="action_cut"/>
+    <addaction name="action_copy"/>
+    <addaction name="action_paste"/>
+    <addaction name="action_settings"/>
+   </widget>
+   <widget class="QMenu" name="menu_help">
+    <property name="title">
+     <string>&amp;Help</string>
+    </property>
+    <addaction name="action_help_topics"/>
+    <addaction name="action_about_papagayo_ng"/>
+   </widget>
+   <widget class="QMenu" name="menu_Conversion">
+    <property name="title">
+     <string>&amp;Conversion</string>
+    </property>
+    <addaction name="action_convert_phonemes"/>
+    <addaction name="action_select_as_current_set"/>
+   </widget>
+   <widget class="QMenu" name="menuDownloads">
+    <property name="title">
+     <string>Download</string>
+    </property>
+    <widget class="QMenu" name="menuAllosaurus">
+     <property name="title">
+      <string>Allosaurus</string>
+     </property>
+     <addaction name="action_allo_download"/>
+    </widget>
+    <widget class="QMenu" name="menuRhubarb">
+     <property name="title">
+      <string>Rhubarb</string>
+     </property>
+     <addaction name="action_rhubarb_download"/>
+    </widget>
+    <widget class="QMenu" name="menuFFmpeg">
+     <property name="title">
+      <string>FFmpeg</string>
+     </property>
+     <addaction name="action_ffmpeg_download"/>
+    </widget>
+    <addaction name="menuAllosaurus"/>
+    <addaction name="menuRhubarb"/>
+    <addaction name="menuFFmpeg"/>
+   </widget>
+   <addaction name="menu_file"/>
+   <addaction name="menu_edit"/>
+   <addaction name="menu_Conversion"/>
+   <addaction name="menuDownloads"/>
+   <addaction name="menu_help"/>
+  </widget>
+  <widget class="QStatusBar" name="statusbar">
+   <property name="acceptDrops">
+    <bool>true</bool>
+   </property>
+  </widget>
+  <widget class="QToolBar" name="toolbar">
+   <property name="acceptDrops">
+    <bool>true</bool>
+   </property>
+   <property name="windowTitle">
+    <string>toolBar</string>
+   </property>
+   <attribute name="toolBarArea">
+    <enum>TopToolBarArea</enum>
+   </attribute>
+   <attribute name="toolBarBreak">
+    <bool>false</bool>
+   </attribute>
+   <addaction name="action_open"/>
+   <addaction name="action_save"/>
+   <addaction name="separator"/>
+   <addaction name="action_play"/>
+   <addaction name="action_stop"/>
+   <addaction name="separator"/>
+   <addaction name="action_zoom_in"/>
+   <addaction name="action_zoom_out"/>
+   <addaction name="action_reset_zoom"/>
+  </widget>
+  <action name="action_help_topics">
+   <property name="icon">
+    <iconset resource="../qt-icons.qrc">
+     <normaloff>:/rsrc/icons/question-line.png</normaloff>:/rsrc/icons/question-line.png</iconset>
+   </property>
+   <property name="text">
+    <string>&amp;Help Topics</string>
+   </property>
+  </action>
+  <action name="action_about_papagayo_ng">
+   <property name="icon">
+    <iconset resource="../qt-icons.qrc">
+     <normaloff>:/rsrc/icons/information-line.png</normaloff>:/rsrc/icons/information-line.png</iconset>
+   </property>
+   <property name="text">
+    <string>&amp;About Papagayo-ng</string>
+   </property>
+  </action>
+  <action name="action_open">
+   <property name="icon">
+    <iconset resource="../qt-icons.qrc">
+     <normaloff>:/rsrc/icons/folder-open-line.png</normaloff>:/rsrc/icons/folder-open-line.png</iconset>
+   </property>
+   <property name="text">
+    <string>&amp;Open</string>
+   </property>
+  </action>
+  <action name="action_save">
+   <property name="enabled">
+    <bool>false</bool>
+   </property>
+   <property name="icon">
+    <iconset resource="../qt-icons.qrc">
+     <normaloff>:/rsrc/icons/save-3-fill.png</normaloff>:/rsrc/icons/save-3-fill.png</iconset>
+   </property>
+   <property name="text">
+    <string>&amp;Save</string>
+   </property>
+  </action>
+  <action name="action_save_as">
+   <property name="enabled">
+    <bool>false</bool>
+   </property>
+   <property name="icon">
+    <iconset resource="../qt-icons.qrc">
+     <normaloff>:/rsrc/icons/save-3-line.png</normaloff>:/rsrc/icons/save-3-line.png</iconset>
+   </property>
+   <property name="text">
+    <string>&amp;Save As...</string>
+   </property>
+  </action>
+  <action name="action_exit">
+   <property name="icon">
+    <iconset resource="../qt-icons.qrc">
+     <normaloff>:/rsrc/icons/shut-down-line.png</normaloff>:/rsrc/icons/shut-down-line.png</iconset>
+   </property>
+   <property name="text">
+    <string>&amp;Exit</string>
+   </property>
+  </action>
+  <action name="action_undo">
+   <property name="enabled">
+    <bool>false</bool>
+   </property>
+   <property name="icon">
+    <iconset resource="../qt-icons.qrc">
+     <normaloff>:/rsrc/icons/arrow-go-back-line.png</normaloff>:/rsrc/icons/arrow-go-back-line.png</iconset>
+   </property>
+   <property name="text">
+    <string>Undo</string>
+   </property>
+  </action>
+  <action name="action_cut">
+   <property name="enabled">
+    <bool>false</bool>
+   </property>
+   <property name="icon">
+    <iconset resource="../qt-icons.qrc">
+     <normaloff>:/rsrc/icons/scissors-cut-line.png</normaloff>:/rsrc/icons/scissors-cut-line.png</iconset>
+   </property>
+   <property name="text">
+    <string>&amp;Cut</string>
+   </property>
+  </action>
+  <action name="action_copy">
+   <property name="enabled">
+    <bool>false</bool>
+   </property>
+   <property name="icon">
+    <iconset resource="../qt-icons.qrc">
+     <normaloff>:/rsrc/icons/file-copy-2-line.png</normaloff>:/rsrc/icons/file-copy-2-line.png</iconset>
+   </property>
+   <property name="text">
+    <string>&amp;Copy</string>
+   </property>
+  </action>
+  <action name="action_paste">
+   <property name="enabled">
+    <bool>false</bool>
+   </property>
+   <property name="icon">
+    <iconset resource="../qt-icons.qrc">
+     <normaloff>:/rsrc/icons/clipboard-line.png</normaloff>:/rsrc/icons/clipboard-line.png</iconset>
+   </property>
+   <property name="text">
+    <string>&amp;Paste</string>
+   </property>
+  </action>
+  <action name="action_play">
+   <property name="enabled">
+    <bool>false</bool>
+   </property>
+   <property name="icon">
+    <iconset resource="../qt-icons.qrc">
+     <normaloff>:/rsrc/icons/play-line.png</normaloff>:/rsrc/icons/play-line.png</iconset>
+   </property>
+   <property name="text">
+    <string>Play</string>
+   </property>
+  </action>
+  <action name="action_stop">
+   <property name="enabled">
+    <bool>false</bool>
+   </property>
+   <property name="icon">
+    <iconset resource="../qt-icons.qrc">
+     <normaloff>:/rsrc/icons/stop-line.png</normaloff>:/rsrc/icons/stop-line.png</iconset>
+   </property>
+   <property name="text">
+    <string>Stop</string>
+   </property>
+  </action>
+  <action name="action_zoom_in">
+   <property name="enabled">
+    <bool>false</bool>
+   </property>
+   <property name="icon">
+    <iconset resource="../qt-icons.qrc">
+     <normaloff>:/rsrc/icons/zoom-in-line.png</normaloff>:/rsrc/icons/zoom-in-line.png</iconset>
+   </property>
+   <property name="text">
+    <string>ZoomIn</string>
+   </property>
+  </action>
+  <action name="action_zoom_out">
+   <property name="enabled">
+    <bool>false</bool>
+   </property>
+   <property name="icon">
+    <iconset resource="../qt-icons.qrc">
+     <normaloff>:/rsrc/icons/zoom-out-line.png</normaloff>:/rsrc/icons/zoom-out-line.png</iconset>
+   </property>
+   <property name="text">
+    <string>ZoomOut</string>
+   </property>
+  </action>
+  <action name="action_reset_zoom">
+   <property name="enabled">
+    <bool>false</bool>
+   </property>
+   <property name="icon">
+    <iconset resource="../qt-icons.qrc">
+     <normaloff>:/rsrc/icons/zoom-1-line.png</normaloff>:/rsrc/icons/zoom-1-line.png</iconset>
+   </property>
+   <property name="text">
+    <string>ResetZoom</string>
+   </property>
+  </action>
+  <action name="action_settings">
+   <property name="icon">
+    <iconset resource="../qt-icons.qrc">
+     <normaloff>:/rsrc/icons/settings-3-line.png</normaloff>:/rsrc/icons/settings-3-line.png</iconset>
+   </property>
+   <property name="text">
+    <string>&amp;Preferences</string>
+   </property>
+   <property name="iconText">
+    <string>Preferences</string>
+   </property>
+   <property name="toolTip">
+    <string>Preferences</string>
+   </property>
+  </action>
+  <action name="action_convert_phonemes">
+   <property name="text">
+    <string>Convert Phonemes</string>
+   </property>
+   <property name="toolTip">
+    <string>Convert Phonemes to currently selected Phoneme Set.</string>
+   </property>
+  </action>
+  <action name="action_select_as_current_set">
+   <property name="text">
+    <string>Select as Current Set</string>
+   </property>
+   <property name="toolTip">
+    <string>This sets the currently selected Phoneme Set for the Project.</string>
+   </property>
+  </action>
+  <action name="action_allo_download">
+   <property name="icon">
+    <iconset resource="../qt-icons.qrc">
+     <normaloff>:/rsrc/icons/refresh-line.png</normaloff>:/rsrc/icons/refresh-line.png</iconset>
+   </property>
+   <property name="text">
+    <string>Update/Download</string>
+   </property>
+  </action>
+  <action name="action_rhubarb_download">
+   <property name="icon">
+    <iconset resource="../qt-icons.qrc">
+     <normaloff>:/rsrc/icons/refresh-line.png</normaloff>:/rsrc/icons/refresh-line.png</iconset>
+   </property>
+   <property name="text">
+    <string>Update/Download</string>
+   </property>
+  </action>
+  <action name="action_ffmpeg_download">
+   <property name="icon">
+    <iconset resource="../qt-icons.qrc">
+     <normaloff>:/rsrc/icons/refresh-line.png</normaloff>:/rsrc/icons/refresh-line.png</iconset>
+   </property>
+   <property name="text">
+    <string>Update/Download</string>
+   </property>
+  </action>
+ </widget>
+ <customwidgets>
+  <customwidget>
+   <class>WaveformView</class>
+   <extends>QFrame</extends>
+   <header>WaveformViewQT</header>
+   <container>1</container>
+  </customwidget>
+  <customwidget>
+   <class>MouthView</class>
+   <extends>QGraphicsView</extends>
+   <header>MouthViewQT</header>
+  </customwidget>
+ </customwidgets>
+ <resources>
+  <include location="../qt-icons.qrc"/>
+ </resources>
+ <connections/>
+</ui>

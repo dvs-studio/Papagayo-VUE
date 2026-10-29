@@ -1,0 +1,8 @@
+{
+  "name": "Papagayo-NG",
+  "description": "Papagayo-VUE: Modernized lip-sync animation tool for 2D and 3D animators with 9-DOF keyframing, voice effector, and DJV export. Redeveloped by Victory Ukpong (2026).",
+  "permissions": [],
+  "capabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}
