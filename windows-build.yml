@@ -1,0 +1,93 @@
+name: Papagayo-VUE Windows Dual-Executable Release Build
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+  workflow_dispatch:
+    inputs:
+      build_type:
+        description: 'Build Target'
+        required: true
+        default: 'dual'
+        type: choice
+        options:
+          - dual
+          - windowed_only
+          - debug_only
+
+jobs:
+  build-windows:
+    name: Build Papagayo-VUE (Standard & Debug Console)
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.10
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+
+      - name: Install Build & Application Dependencies
+        shell: cmd
+        run: |
+          python -m pip install --upgrade pip setuptools wheel
+          python -m pip install PyInstaller==6.11.1 pyinstaller-versionfile
+          python -m pip install -r requirements.txt
+          python -m pip install PySide6 sounddevice pydub
+
+      - name: Run Environment & Module Pre-Build Diagnostics
+        shell: cmd
+        run: |
+          python diagnose_crash.py
+
+      - name: Build Executables via build_windows.py
+        shell: cmd
+        run: |
+          python build_windows.py
+
+      - name: Verify Compiled Executables
+        shell: pwsh
+        run: |
+          $standardExe = "dist\Papagayo-VUE-Windows\Papagayo-VUE.exe"
+          $debugExe = "dist\Papagayo-VUE-Windows\Papagayo-VUE_debug.exe"
+          $foundAny = $false
+          if (Test-Path $standardExe) {
+            Write-Host "✅ Standard windowed binary verified: $standardExe"
+            $foundAny = $true
+          } else {
+            Write-Warning "Standard binary not found at $standardExe"
+          }
+          if (Test-Path $debugExe) {
+            Write-Host "✅ Debug CMD console binary verified: $debugExe"
+            $foundAny = $true
+          } else {
+            Write-Warning "Debug binary not found at $debugExe"
+          }
+          if (-not $foundAny) {
+            Write-Error "Neither standard nor debug executable was produced."
+            exit 1
+          }
+
+      - name: Upload Windows Portable Release Artifact
+        uses: actions/upload-artifact@v4
+        if: success()
+        with:
+          name: Papagayo-VUE-Windows-x64-DualExe
+          path: dist/Papagayo-VUE-Windows-x64.zip
+          if-no-files-found: warn
+          retention-days: 30
+
+      - name: Upload Diagnostic Report & Build Logs
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: Papagayo-VUE-Diagnostic-Logs
+          path: |
+            crash_diagnostic.txt
+            dist/build_summary.txt
+          if-no-files-found: warn
+          retention-days: 30

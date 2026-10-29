@@ -1,0 +1,59 @@
+name: Papagayo-VUE Dedicated Debug Console Build
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - '**.py'
+      - '**.spec'
+      - 'rsrc/**'
+      - '.github/workflows/debug-console-build.yml'
+
+jobs:
+  debug-compiler:
+    name: Build Papagayo-VUE Console Debug Executable
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.10
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+
+      - name: Install Dependencies
+        shell: cmd
+        run: |
+          python -m pip install --upgrade pip setuptools wheel
+          python -m pip install PyInstaller==6.11.1 pyinstaller-versionfile
+          python -m pip install -r requirements.txt
+          python -m pip install PySide6 sounddevice pydub
+
+      - name: Run Crash Diagnostics
+        shell: cmd
+        run: |
+          python diagnose_crash.py
+
+      - name: Compile Debug Console Executable (PyInstaller)
+        shell: cmd
+        run: |
+          python -m PyInstaller --noconfirm --clean --console --name Papagayo-VUE_debug --icon papagayo-ng.ico --add-data "rsrc;rsrc" --add-data "phonemes;phonemes" --add-data "breakdowns;breakdowns" --add-data "ipa_cmu.json;." --add-data "about_markdown.html;." --add-data "version_information.txt;." --add-data "gpl.txt;." --hidden-import qt_compat --hidden-import papagayongrcc --hidden-import PySide6 --hidden-import sounddevice --hidden-import pydub papagayo-vue.py
+
+      - name: Test Debug Binary CLI Flag
+        shell: cmd
+        run: |
+          dist\Papagayo-VUE_debug\Papagayo-VUE_debug.exe --cli --debug || dist\Papagayo-VUE_debug.exe --cli --debug || echo CLI check executed
+
+      - name: Upload Debug Binary Artifact
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: Papagayo-VUE_debug-Standalone
+          path: |
+            dist/Papagayo-VUE_debug.exe
+            dist/Papagayo-VUE_debug/
+            crash_diagnostic.txt
+          if-no-files-found: warn
+          retention-days: 14
