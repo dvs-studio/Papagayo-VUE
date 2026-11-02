@@ -38,17 +38,16 @@ jobs:
           python -m pip install PyInstaller==6.11.1 pyinstaller-versionfile
           python -m pip install -r requirements.txt
           python -m pip install PySide6 sounddevice pydub
-
       - name: Run Environment & Module Pre-Build Diagnostics
         shell: cmd
         run: |
+          chcp 65001 >nul
+          set PYTHONIOENCODING=utf-8
           python diagnose_crash.py
-
       - name: Build Executables via build_windows.py
         shell: cmd
         run: |
           python build_windows.py
-
       - name: Verify Compiled Executables
         shell: pwsh
         run: |
@@ -71,7 +70,6 @@ jobs:
             Write-Error "Neither standard nor debug executable was produced."
             exit 1
           }
-
       - name: Upload Windows Portable Release Artifact
         uses: actions/upload-artifact@v4
         if: success()
@@ -79,7 +77,7 @@ jobs:
           name: Papagayo-VUE-Windows-x64-DualExe
           path: dist/Papagayo-VUE-Windows-x64.zip
           if-no-files-found: warn
-          retention-days: 90
+          retention-days: 30
 
       - name: Upload Diagnostic Report & Build Logs
         uses: actions/upload-artifact@v4
