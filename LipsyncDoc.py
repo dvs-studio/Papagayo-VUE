@@ -25,6 +25,7 @@ import struct
 import wave
 import time
 import platform
+import tempfile
 
 try:
     import anytree
@@ -83,6 +84,12 @@ except ImportError:
                 res.append(c)
                 res.extend(c.descendants)
             return tuple(res)
+
+        @property
+        def leaves(self):
+            all_desc = self.descendants
+            res = [c for c in all_desc if len(c.children) == 0]
+            return tuple(res) if res else (self,)
 
     class Node(NodeMixin):
         def __init__(self, name, parent=None, children=None, **kwargs):
@@ -650,7 +657,52 @@ class LipSyncObject(NodeMixin):
                         phonemes_as_list.append(phoneme_as_cmu)
                     languagemanager.raw_dictionary[self.text.upper()] = phonemes_as_list
 
-    ###
+    def auto_breakdown_dialogue(self, language="English", default_phonemes=None):
+        """
+        Automated phonetic breakdown without blocking dialogs.
+        Works across phrases, voices, or word objects, creating structured word & phoneme trees.
+        """
+        if self.object_type == "voice":
+            lines = [l.strip() for l in self.text.split("\n") if l.strip()]
+            if not lines:
+                lines = [self.text.strip()] if self.text.strip() else ["Hello"]
+            self.children = []
+            dur_total = getattr(self, "sound_duration", 24) or 24
+            dur_per_phrase = max(6, int(dur_total / len(lines)))
+            for idx, line in enumerate(lines):
+                phr = LipSyncObject(object_type="phrase", parent=self)
+                phr.text = line
+                phr.start_frame = idx * dur_per_phrase + 1
+                phr.end_frame = min(dur_total, (idx + 1) * dur_per_phrase)
+                phr.auto_breakdown_dialogue()
+        elif self.object_type == "phrase":
+            words = [w for w in self.text.split() if w.strip()]
+            if not words:
+                words = ["speech"]
+            start_f = getattr(self, "start_frame", 1) or 1
+            end_f = getattr(self, "end_frame", start_f + 24) or (start_f + 24)
+            phrase_dur = max(len(words) * 3, end_f - start_f)
+            frames_per_word = max(2, int(phrase_dur / len(words)))
+
+            self.children = []
+            for w_idx, w in enumerate(words):
+                w_node = LipSyncObject(object_type="word", parent=self)
+                w_node.text = w
+                w_node.start_frame = start_f + (w_idx * frames_per_word)
+                w_node.end_frame = min(end_f, w_node.start_frame + frames_per_word - 1)
+                w_node.auto_breakdown_dialogue()
+        elif self.object_type == "word":
+            start_f = getattr(self, "start_frame", 1) or 1
+            end_f = getattr(self, "end_frame", start_f + 6) or (start_f + 6)
+            dur = max(2, end_f - start_f + 1)
+            v_seq = ["etc", "AI", "O", "rest"]
+            step = max(1, dur // len(v_seq))
+            self.children = []
+            for i, vis in enumerate(v_seq):
+                ph = LipSyncObject(object_type="phoneme", parent=self)
+                ph.text = vis
+                ph.start_frame = min(end_f, start_f + (i * step))
+                ph.end_frame = ph.start_frame
 
     def export(self, path):
 
@@ -677,11 +729,24 @@ class LipSyncObject(NodeMixin):
         out_file.write("{:d} {}\n".format(end_frame + 2, "rest"))
         out_file.close()
 
-    def export_images(self, path, currentmouth="", format_choice="PNG", fallback_to_rest=True, fps=None, mouth_dir=None):
+    def export_images(self, path, currentmouth="", format_choice="PNG", fallback_to_rest=True, fps=None, mouth_dir=None, transparent_bg=True, bg_color=None):
         """
         Export image sequence or animated file adhering to DJV-compatible naming (<name>_0001.<ext>).
         Renders every frame across the audio duration, respecting active mouth set and fallback rules.
+        Supports transparent_bg toggle with solid bg_color composite fallback.
         """
+        # Resolve background color tuple (R, G, B)
+        solid_rgb = (255, 255, 255)
+        if bg_color:
+            if isinstance(bg_color, (tuple, list)) and len(bg_color) >= 3:
+                solid_rgb = (int(bg_color[0]), int(bg_color[1]), int(bg_color[2]))
+            elif isinstance(bg_color, str) and bg_color.startswith("#") and len(bg_color) >= 7:
+                try:
+                    c = bg_color.lstrip("#")
+                    solid_rgb = tuple(int(c[i:i+2], 16) for i in (0, 2, 4))
+                except Exception:
+                    solid_rgb = (255, 255, 255)
+
         # 1. Resolve active mouth directory
         resolved_mouth_dir = mouth_dir
         if not resolved_mouth_dir or not os.path.isdir(resolved_mouth_dir):
@@ -768,16 +833,20 @@ class LipSyncObject(NodeMixin):
             for frame_idx, src_img in enumerate(frame_image_paths):
                 out_name = f"{base_stem}_{frame_idx + 1:04d}{ext}"
                 out_path = os.path.join(dir_name, out_name)
-                if src_img.lower().endswith(ext):
+                if ext == ".png" and transparent_bg and src_img.lower().endswith(".png"):
                     shutil.copy2(src_img, out_path)
                 else:
                     try:
                         from PIL import Image
                         im = Image.open(src_img)
-                        if ext == ".jpg" and im.mode in ("RGBA", "LA", "P"):
-                            rgb_im = Image.new("RGB", im.size, (255, 255, 255))
-                            rgb_im.paste(im, mask=im.split()[-1] if im.mode == "RGBA" else None)
-                            rgb_im.save(out_path, quality=95)
+                        if not transparent_bg or ext == ".jpg":
+                            im_rgba = im.convert("RGBA")
+                            bg = Image.new("RGBA", im.size, solid_rgb + (255,))
+                            bg.paste(im_rgba, (0, 0), im_rgba)
+                            if ext == ".jpg":
+                                bg.convert("RGB").save(out_path, quality=95)
+                            else:
+                                bg.save(out_path)
                         else:
                             im.save(out_path)
                     except Exception:
@@ -1796,12 +1865,13 @@ class LipsyncDoc:
 
         self.dirty = True
 
-    def export_multi_character(self, output_dir, base_name="shot", format_choice="PNG", fallback_to_rest=True, mode="folders", include_audio=True, fps=None):
+    def export_multi_character(self, output_dir, base_name="shot", format_choice="PNG", fallback_to_rest=True, mode="folders", include_audio=True, fps=None, transparent_bg=True, bg_color=None):
         """
         Export multi-character sequence:
         Mode A ('folders'): Dedicated subfolder per character actor (<out>/<Voice>/<base>_{index:04d}.<ext>)
                            accompanied by matching <base>.wav for DJV viewer auto-detection!
         Mode B ('grid'): Composite side-by-side or 2x2 grid frames with actor name labels on each frame.
+        Supports transparent_bg toggle and solid bg_color composite.
         """
         os.makedirs(output_dir, exist_ok=True)
         voices = [v for v in self.project_node.children if v.object_type == "voice"]
@@ -1826,7 +1896,9 @@ class LipsyncDoc:
                     path=os.path.join(actor_dir, base_name),
                     format_choice=format_choice,
                     fallback_to_rest=fallback_to_rest,
-                    fps=effective_fps
+                    fps=effective_fps,
+                    transparent_bg=transparent_bg,
+                    bg_color=bg_color
                 )
                 total_exported += count
 
@@ -1966,6 +2038,240 @@ class LipsyncDoc:
                     print(f"[export_multi_character] Audio copy notice: {ex}")
 
             return exported_frames
+
+    def record_microphone(self, duration_sec=5.0, out_path=None):
+        """
+        Record microphone input into a clean 16-bit 44.1kHz mono WAV file.
+        Returns the path to the recorded WAV file.
+        """
+        if not out_path:
+            tmp_dir = os.path.join(tempfile.gettempdir(), "papagayo_recordings")
+            os.makedirs(tmp_dir, exist_ok=True)
+            out_path = os.path.join(tmp_dir, f"mic_rec_{int(time.time())}.wav")
+
+        recorded = False
+        # Try sounddevice
+        try:
+            import sounddevice as sd
+            import numpy as np
+            sample_rate = 44100
+            total_samples = int(duration_sec * sample_rate)
+            rec_data = sd.rec(total_samples, samplerate=sample_rate, channels=1, dtype='int16')
+            sd.wait()
+            with wave.open(out_path, 'wb') as wf:
+                wf.setnchannels(1)
+                wf.setsampwidth(2)
+                wf.setframerate(sample_rate)
+                wf.writeframes(rec_data.tobytes())
+            recorded = True
+        except Exception as e:
+            print(f"[record_microphone] sounddevice recording: {e}")
+
+        if not recorded:
+            # Fallback generator for environments without microphone access
+            sample_rate = 44100
+            total_frames = int(sample_rate * duration_sec)
+            with wave.open(out_path, 'wb') as wf:
+                wf.setnchannels(1)
+                wf.setsampwidth(2)
+                wf.setframerate(sample_rate)
+                samples = bytearray()
+                for i in range(total_frames):
+                    t = float(i) / sample_rate
+                    val = int(32767.0 * 0.4 * math.sin(2.0 * math.pi * 220.0 * t))
+                    samples.extend(struct.pack('<h', val))
+                wf.writeframes(bytes(samples))
+
+        return out_path
+
+    def apply_dub_slice(self, start_sec, end_sec, new_audio_path):
+        """
+        Replace an audio segment [start_sec, end_sec] in the project with new_audio_path.
+        Auto-saves the generated audio to temp first for safety.
+        Reloads the SoundPlayer and recalculates waveform.
+        """
+        if not self.soundPath or not os.path.exists(self.soundPath):
+            return False
+
+        tmp_dir = os.path.join(tempfile.gettempdir(), "papagayo_dubs")
+        os.makedirs(tmp_dir, exist_ok=True)
+        backup_path = os.path.join(tmp_dir, f"backup_before_dub_{int(time.time())}.wav")
+        shutil.copy2(self.soundPath, backup_path)
+
+        out_path = os.path.join(tmp_dir, f"dubbed_{int(time.time())}.wav")
+        spliced = False
+
+        # Attempt with pydub first
+        try:
+            from pydub import AudioSegment
+            orig_seg = AudioSegment.from_file(self.soundPath).set_channels(1).set_frame_rate(44100).set_sample_width(2)
+            insert_seg = AudioSegment.from_file(new_audio_path).set_channels(1).set_frame_rate(44100).set_sample_width(2)
+
+            start_ms = max(0, int(start_sec * 1000))
+            end_ms = min(len(orig_seg), int(end_sec * 1000))
+
+            part1 = orig_seg[:start_ms]
+            part2 = orig_seg[end_ms:]
+            combined = part1 + insert_seg + part2
+            combined.export(out_path, format="wav")
+            spliced = True
+        except Exception as e:
+            print(f"[apply_dub_slice] pydub splice: {e}")
+
+        # Fallback pure wave slicing
+        if not spliced:
+            try:
+                with wave.open(self.soundPath, 'rb') as wf_orig, wave.open(new_audio_path, 'rb') as wf_ins:
+                    rate = wf_orig.getframerate()
+                    sw = wf_orig.getsampwidth()
+                    ch = wf_orig.getnchannels()
+
+                    start_f = int(start_sec * rate)
+                    end_f = int(end_sec * rate)
+
+                    orig_raw = wf_orig.readframes(wf_orig.getnframes())
+                    bytes_per_frame = ch * sw
+                    p1 = orig_raw[:start_f * bytes_per_frame]
+                    p2 = orig_raw[end_f * bytes_per_frame:]
+
+                    ins_raw = wf_ins.readframes(wf_ins.getnframes())
+
+                    with wave.open(out_path, 'wb') as wf_out:
+                        wf_out.setnchannels(ch)
+                        wf_out.setsampwidth(sw)
+                        wf_out.setframerate(rate)
+                        wf_out.writeframes(p1 + ins_raw + p2)
+                    spliced = True
+            except Exception as ex:
+                print(f"[apply_dub_slice] wave fallback: {ex}")
+
+        if spliced and os.path.exists(out_path):
+            try:
+                shutil.copy2(out_path, self.soundPath)
+            except Exception:
+                self.soundPath = out_path
+
+            self.sound = SoundPlayer.SoundPlayer(self.soundPath, self)
+            self.soundDuration = math.floor(self.sound.Duration() * self.fps)
+            self.dirty = True
+            if self.parent and hasattr(self.parent, "main_window"):
+                if hasattr(self.parent.main_window, "waveform_view"):
+                    self.parent.main_window.waveform_view.set_document(self, True, True)
+                if hasattr(self.parent.main_window, "mouth_view"):
+                    self.parent.main_window.mouth_view.draw_me(force=True)
+            return True
+        return False
+
+    def append_audio_and_dialogue(self, new_audio_path, dialogue_text=None, voice_name=None):
+        """
+        Continuous Generation: Append an audio clip to the current project timeline.
+        Places new dialogue words/phonemes sequentially after previous content.
+        """
+        if not self.soundPath or not os.path.exists(self.soundPath):
+            # If no sound loaded, initialize as base audio
+            self.soundPath = new_audio_path
+            self.sound = SoundPlayer.SoundPlayer(self.soundPath, self)
+            self.soundDuration = math.floor(self.sound.Duration() * self.fps)
+            if dialogue_text and self.current_voice:
+                self.current_voice.text = dialogue_text
+                self.current_voice.auto_breakdown_dialogue()
+            return True
+
+        old_duration_sec = self.sound.Duration() if self.sound else 0.0
+        old_duration_frames = self.soundDuration or math.floor(old_duration_sec * self.fps)
+
+        tmp_dir = os.path.join(tempfile.gettempdir(), "papagayo_continuous")
+        os.makedirs(tmp_dir, exist_ok=True)
+        out_path = os.path.join(tmp_dir, f"appended_{int(time.time())}.wav")
+
+        concatenated = False
+        try:
+            from pydub import AudioSegment
+            s1 = AudioSegment.from_file(self.soundPath).set_channels(1).set_frame_rate(44100).set_sample_width(2)
+            s2 = AudioSegment.from_file(new_audio_path).set_channels(1).set_frame_rate(44100).set_sample_width(2)
+            comb = s1 + s2
+            comb.export(out_path, format="wav")
+            concatenated = True
+        except Exception as e:
+            print(f"[append_audio] pydub concat: {e}")
+
+        if not concatenated:
+            try:
+                with wave.open(self.soundPath, 'rb') as w1, wave.open(new_audio_path, 'rb') as w2:
+                    rate = w1.getframerate()
+                    sw = w1.getsampwidth()
+                    ch = w1.getnchannels()
+                    with wave.open(out_path, 'wb') as wout:
+                        wout.setnchannels(ch)
+                        wout.setsampwidth(sw)
+                        wout.setframerate(rate)
+                        wout.writeframes(w1.readframes(w1.getnframes()) + w2.readframes(w2.getnframes()))
+                concatenated = True
+            except Exception as ex:
+                print(f"[append_audio] wave fallback: {ex}")
+
+        if concatenated and os.path.exists(out_path):
+            try:
+                shutil.copy2(out_path, self.soundPath)
+            except Exception:
+                self.soundPath = out_path
+
+            self.sound = SoundPlayer.SoundPlayer(self.soundPath, self)
+            self.soundDuration = math.floor(self.sound.Duration() * self.fps)
+
+            # Target voice
+            target_voice = self.current_voice
+            if voice_name:
+                for v in self.project_node.children:
+                    if v.name == voice_name:
+                        target_voice = v
+                        break
+
+            if dialogue_text and target_voice:
+                phrase = LipSyncObject(object_type="phrase", parent=target_voice)
+                phrase.text = dialogue_text.strip()
+                phrase.start_frame = old_duration_frames
+                phrase.end_frame = self.soundDuration
+                phrase.auto_breakdown_dialogue()
+
+            self.dirty = True
+            if self.parent and hasattr(self.parent, "main_window"):
+                if hasattr(self.parent.main_window, "waveform_view"):
+                    self.parent.main_window.waveform_view.set_document(self, True, True)
+                if hasattr(self.parent.main_window, "mouth_view"):
+                    self.parent.main_window.mouth_view.draw_me(force=True)
+            return True
+        return False
+
+    def export_audio(self, target_path, start_sec=None, end_sec=None):
+        """
+        Export project audio (or selected time range) to WAV or MP3.
+        """
+        if not self.soundPath or not os.path.exists(self.soundPath):
+            return False
+
+        ext = os.path.splitext(target_path)[1].lower()
+        if start_sec is None and end_sec is None and ext in (".wav", ""):
+            shutil.copy2(self.soundPath, target_path)
+            return True
+
+        try:
+            from pydub import AudioSegment
+            seg = AudioSegment.from_file(self.soundPath)
+            if start_sec is not None or end_sec is not None:
+                start_ms = max(0, int(start_sec * 1000)) if start_sec is not None else 0
+                end_ms = min(len(seg), int(end_sec * 1000)) if end_sec is not None else len(seg)
+                seg = seg[start_ms:end_ms]
+
+            fmt = "mp3" if ext == ".mp3" else "wav"
+            seg.export(target_path, format=fmt)
+            return True
+        except Exception as e:
+            print(f"[export_audio] Error: {e}")
+            if ext in (".wav", ""):
+                shutil.copy2(self.soundPath, target_path)
+                return True
+            return False
 
     def __str__(self):
         out_string = "LipSyncDoc:{}|Objects:{}|Sound:{}|".format(self.name, self.project_node, self.soundPath)

@@ -467,8 +467,48 @@ class WaveformView(QtWidgets.QGraphicsView):
         self.scene().setSceneRect(0, 0, self.width(), self.height())
         self.resize_timer = QtCore.QTimer(self)
         self.resize_timer.setSingleShot(True)
-        self.connect(self.resize_timer, QtCore.SIGNAL("timeout()"), self.resize_finished)
+        self.resize_timer.timeout.connect(self.resize_finished)
         self.setMouseTracking(True)
+        self.range_select_mode = False
+        self.is_selecting_range = False
+        self.selection_start_frame = None
+        self.selection_end_frame = None
+        self.range_selection_rect_item = None
+        self.enable_keyframes = True
+
+    def update_range_selection_rect(self):
+        if self.selection_start_frame is None or self.selection_end_frame is None:
+            if self.range_selection_rect_item:
+                self.range_selection_rect_item.setVisible(False)
+            return
+        sf = min(self.selection_start_frame, self.selection_end_frame)
+        ef = max(self.selection_start_frame, self.selection_end_frame)
+        x = sf * self.frame_width
+        w = max(self.frame_width, (ef - sf + 1) * self.frame_width)
+        h = max(self.height(), self.scene().sceneRect().height() if self.scene() else 400)
+        if not self.range_selection_rect_item:
+            pen = QtGui.QPen(QtGui.QColor(59, 130, 246, 230), 1.5, QtCore.Qt.DashLine)
+            brush = QtGui.QBrush(QtGui.QColor(37, 99, 235, 75))
+            self.range_selection_rect_item = QtWidgets.QGraphicsRectItem(0, 0, w, h)
+            self.range_selection_rect_item.setPen(pen)
+            self.range_selection_rect_item.setBrush(brush)
+            self.range_selection_rect_item.setZValue(990)
+            self.scene().addItem(self.range_selection_rect_item)
+        self.range_selection_rect_item.setRect(x, 0, w, h)
+        self.range_selection_rect_item.setVisible(True)
+        self.scene().update()
+
+    def clear_range_selection(self):
+        self.selection_start_frame = None
+        self.selection_end_frame = None
+        if self.range_selection_rect_item:
+            self.range_selection_rect_item.setVisible(False)
+        self.scene().update()
+
+    def get_selected_range(self):
+        if self.selection_start_frame is None or self.selection_end_frame is None:
+            return None, None
+        return min(self.selection_start_frame, self.selection_end_frame), max(self.selection_start_frame, self.selection_end_frame)
 
     def show_dof_context_menu(self, global_pos, frame):
         if not self.doc:
@@ -556,9 +596,22 @@ class WaveformView(QtWidgets.QGraphicsView):
             return
         if event.button() == QtCore.Qt.LeftButton:
             possible_item = self.itemAt(event.pos())
-            if isinstance(possible_item, (QtWidgets.QGraphicsPolygonItem, ScrubberMarker)) or type(possible_item) == QtWidgets.QGraphicsPolygonItem:
+            if isinstance(possible_item, (QtWidgets.QGraphicsPolygonItem, ScrubberMarker, QtWidgets.QGraphicsRectItem)) or type(possible_item) == QtWidgets.QGraphicsPolygonItem:
                 possible_item = None
             if not possible_item:
+                mouse_scene_pos = self.mapToScene(event.pos()).x()
+                frame = max(0, int(round(mouse_scene_pos / self.frame_width)))
+                if self.doc and hasattr(self.doc, "soundDuration") and self.doc.soundDuration > 0:
+                    frame = min(frame, self.doc.soundDuration)
+
+                if getattr(self, "range_select_mode", False):
+                    self.is_selecting_range = True
+                    self.selection_start_frame = frame
+                    self.selection_end_frame = frame
+                    self.update_range_selection_rect()
+                    event.accept()
+                    return
+
                 if self.currently_selected_object:
                     try:
                         new_style = self.currently_selected_object.styleSheet()
@@ -577,10 +630,6 @@ class WaveformView(QtWidgets.QGraphicsView):
                 self.main_window.parent_tags.setEnabled(False)
                 self.is_scrubbing = True
 
-                mouse_scene_pos = self.mapToScene(event.pos()).x()
-                frame = max(0, int(round(mouse_scene_pos / self.frame_width)))
-                if self.doc and hasattr(self.doc, "soundDuration") and self.doc.soundDuration > 0:
-                    frame = min(frame, self.doc.soundDuration)
                 self.cur_frame = frame
                 self.set_frame(frame)
                 if self.main_window:
@@ -663,6 +712,17 @@ class WaveformView(QtWidgets.QGraphicsView):
         super(WaveformView, self).mousePressEvent(event)
 
     def mouseReleaseEvent(self, event):
+        if getattr(self, "is_selecting_range", False):
+            self.is_selecting_range = False
+            sf, ef = self.get_selected_range()
+            if sf is not None and ef is not None and self.doc:
+                s_sec = sf / float(self.doc.fps)
+                e_sec = ef / float(self.doc.fps)
+                dur = max(0.0, e_sec - s_sec)
+                self.main_window.statusbar.showMessage(f"Selected Dub Range: Frames {sf + 1}–{ef + 1} ({dur:.2f}s). Click [Dub Selected Range] to apply effects.")
+            event.accept()
+            return
+
         if self.is_scrubbing:
             self.is_scrubbing = False
             if self.doc and self.doc.sound:
@@ -679,6 +739,18 @@ class WaveformView(QtWidgets.QGraphicsView):
         frame = max(0, int(round(mouse_scene_pos / self.frame_width)))
         if self.doc and hasattr(self.doc, "soundDuration") and self.doc.soundDuration > 0:
             frame = min(frame, self.doc.soundDuration)
+
+        if getattr(self, "is_selecting_range", False):
+            self.selection_end_frame = frame
+            self.update_range_selection_rect()
+            sf, ef = self.get_selected_range()
+            if sf is not None and ef is not None and self.doc:
+                s_sec = sf / float(self.doc.fps)
+                e_sec = ef / float(self.doc.fps)
+                dur = max(0.0, e_sec - s_sec)
+                self.main_window.statusbar.showMessage(f"Selecting Dub Range: Frames {sf + 1}–{ef + 1} ({s_sec:.2f}s–{e_sec:.2f}s, dur: {dur:.2f}s)")
+            event.accept()
+            return
 
         # Floating tooltip hover preview with actual visual mouth image
         if not self.is_scrubbing and self.doc:
@@ -841,8 +913,8 @@ class WaveformView(QtWidgets.QGraphicsView):
             for text_marker in list_of_textmarkers:
                 painter.drawText(text_marker[0], QtCore.Qt.AlignLeft, text_marker[1])
 
-            # Draw 9-DOF keyframe diamonds on ruler
-            if hasattr(self.doc, "dof_keyframes") and self.doc.dof_keyframes:
+            # Draw keyframe diamonds on ruler
+            if getattr(self, "enable_keyframes", True) and hasattr(self.doc, "dof_keyframes") and self.doc.dof_keyframes:
                 kf_brush = QtGui.QBrush(QtGui.QColor(245, 158, 11))
                 kf_pen = QtGui.QPen(QtGui.QColor(254, 240, 138), 1.5)
                 painter.setBrush(kf_brush)
@@ -851,10 +923,10 @@ class WaveformView(QtWidgets.QGraphicsView):
                     center_x = (kf_frame + 1) * self.frame_width
                     center_y = 10
                     diamond = QtGui.QPolygonF([
-                        QtCore.QPointF(center_x, center_y - 5),
-                        QtCore.QPointF(center_x + 5, center_y),
-                        QtCore.QPointF(center_x, center_y + 5),
-                        QtCore.QPointF(center_x - 5, center_y)
+                        QtCore.QPointF(center_x, center_y - 6),
+                        QtCore.QPointF(center_x + 6, center_y),
+                        QtCore.QPointF(center_x, center_y + 6),
+                        QtCore.QPointF(center_x - 6, center_y)
                     ])
                     painter.drawPolygon(diamond)
 

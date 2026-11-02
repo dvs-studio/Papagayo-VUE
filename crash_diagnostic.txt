@@ -1,75 +1,12 @@
-============================================================
-  PAPAGAYO-VUE DIAGNOSTIC & CRASH REPORT
-  Redeveloped by Victory Ukpong (2026)
-  Generated At: 2026-10-30 15:52:52
-============================================================
+Papagayo-VUE Crash Report (Victory Ukpong, 2026)
+==================================================
+Traceback (most recent call last):
+  File "C:\Users\Dell\Downloads\repository\LipsyncFrameQT.py", line 1834, in on_new_audio
+    self.open(dlg.output_audio_path)
+  File "C:\Users\Dell\Downloads\repository\LipsyncFrameQT.py", line 1682, in open
+    self.doc.auto_recognize_phoneme()
+  File "C:\Users\Dell\Downloads\repository\LipsyncDoc.py", line 1405, in auto_recognize_phoneme
+    if self.settings.value("/VoiceRecognition/run_voice_recognition", "true").lower() == "true" or manual_invoke:
+       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AttributeError: 'bool' object has no attribute 'lower'
 
-============================================================
-  1. System Environment & Python Architecture
-============================================================
-✅ [OK]     Operating System       : Linux 4.19.0-gvisor (#1 SMP Sun Jan 10 15:06:54 PST 2016)
-✅ [OK]     Python Executable      : /usr/bin/python3
-✅ [OK]     Python Version         : 3.10.12 (64bit)
-✅ [OK]     Working Directory      : /app/applet
-✅ [OK]     Base Project Path      : /app/applet
-
-============================================================
-  2. Project Files & Assets Tree Check
-============================================================
-✅ [OK]     File Present           : papagayo-vue.py (9248 bytes)
-✅ [OK]     File Present           : papagayo-ng.py (379 bytes)
-✅ [OK]     File Present           : app.py (88252 bytes)
-✅ [OK]     File Present           : main.py (112 bytes)
-✅ [OK]     File Present           : LipsyncDoc.py (93133 bytes)
-✅ [OK]     File Present           : LipsyncFrameQT.py (86535 bytes)
-✅ [OK]     File Present           : MouthViewQT.py (16254 bytes)
-✅ [OK]     File Present           : SettingsQT.py (11912 bytes)
-✅ [OK]     File Present           : SoundPlayer.py (10415 bytes)
-✅ [OK]     File Present           : utilities.py (7758 bytes)
-✅ [OK]     File Present           : about_markdown.html (1842 bytes)
-✅ [OK]     File Present           : version_information.txt (348 bytes)
-✅ [OK]     File Present           : rsrc/about_box.ui (9504 bytes)
-✅ [OK]     File Present           : rsrc/settings.ui (24315 bytes)
-✅ [OK]     File Present           : rsrc/themes/dark_grey.qss (2061 bytes)
-✅ [OK]     File Present           : rsrc/themes/light.qss (2057 bytes)
-✅ [OK]     File Present           : rsrc/themes/slate.qss (2057 bytes)
-✅ [OK]     File Present           : samples/sample_voice.wav (176444 bytes)
-✅ [OK]     File Present           : samples/tutorial_basic_lipsync.pgo (221 bytes)
-✅ [OK]     File Present           : samples/tutorial_multi_character.pgo (220 bytes)
-✅ [OK]     File Present           : samples/README_TUTORIAL.txt (2777 bytes)
-✅ [OK]     Viseme Mouth Sets      : 10 found (5 - Fleming and Dobbs, 10 - Hunanbean @ 66% (CMU39), 9 - Hunanbean @ 100% (CMU39), 6 - Azia Comics 1 (preston_blair)...)
-
-============================================================
-  3. Qt Backend & Display Subsystem
-============================================================
-✅ [OK]     qt_compat Import       : Backend: Headless
-✅ [OK]     Headless Flag          : IS_HEADLESS = True
-✅ [OK]     QAction Compatibility  : QtWidgets.QAction & QtGui.QAction safely bound
-✅ [OK]     QApplication Init      : Initialized offscreen QApplication successfully
-
-============================================================
-  4. Audio Engine & Waveform DSP Check
-============================================================
-✅ [OK]     Standard Audio Modules : wave, struct, math loaded
-✅ [OK]     WAV Generator          : Synthesized 0.1s 440Hz test wave (8864 bytes)
-✅ [OK]     SoundPlayer Engine     : Valid=True, Duration=0.10s
-
-============================================================
-  5. Lipsync Document, 9-DOF & Conversion Engine
-============================================================
-✅ [OK]     LipsyncDoc Open        : Project: Untitled, Sound valid=True
-✅ [OK]     Object Hierarchy       : Voice -> Phrase -> Word -> Phonemes constructed
-✅ [OK]     Phoneme Conversion Kit : Successfully converted 2 phonemes to Rhubarb
-✅ [OK]     Voice Effector DSP     : Processed 'Male to Female' preset -> test_diag_effect_1793375572.wav
-✅ [OK]     PGO Roundtrip          : Saved and reloaded /tmp/test_diag.pgo (112 bytes)
-
-============================================================
-  6. Windows Build & Packaging Specifications
-============================================================
-✅ [OK]     Spec File (papagayo-vue.spec) : Found (3146 chars, dual _debug target: True)
-✅ [OK]     Spec File (papagayo-ng.spec) : Found (3106 chars, dual _debug target: False)
-✅ [OK]     Windows Build Script   : build_windows.py present and verified
-
-============================================================
-  Diagnostic Summary
-============================================================

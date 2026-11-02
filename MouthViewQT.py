@@ -32,7 +32,12 @@ class MouthView(QtWidgets.QGraphicsView):
         self.setScene(QtWidgets.QGraphicsScene(self))
         self.setVerticalScrollBarPolicy(QtCore.Qt.ScrollBarAlwaysOff)
         self.setHorizontalScrollBarPolicy(QtCore.Qt.ScrollBarAlwaysOff)
-        self.translator = utilities.ApplicationTranslator()
+        self.setRenderHint(QtGui.QPainter.Antialiasing, True)
+        self.setRenderHint(QtGui.QPainter.SmoothPixmapTransform, True)
+        self.settings = QtCore.QSettings(os.path.join(utilities.get_app_data_path(), "settings.ini"), QtCore.QSettings.IniFormat)
+        saved_bg = self.settings.value("/Graphics/preview_bg_color", "#ffffff")
+        self.bg_color = QtGui.QColor(saved_bg)
+        self.setBackgroundBrush(QtGui.QBrush(self.bg_color))
         # Other initialization
         self.doc = None
         self.cur_frame = 0
@@ -70,6 +75,9 @@ class MouthView(QtWidgets.QGraphicsView):
         act_grid.setChecked(self.view_mode == "grid_2x2")
 
         menu.addSeparator()
+        act_bg = menu.addAction("Preview Background Color...")
+
+        menu.addSeparator()
         mouth_sub = menu.addMenu("Switch Viseme Mouth Set")
         mouth_actions = {}
         for m_name in sorted(self.mouths.keys()):
@@ -99,9 +107,20 @@ class MouthView(QtWidgets.QGraphicsView):
         elif action == act_grid:
             self.view_mode = "grid_2x2"
             self.draw_me(force=True)
+        elif action == act_bg:
+            self.choose_background_color()
         elif action in mouth_actions:
             target_mouth = mouth_actions[action]
             self.set_mouth(target_mouth)
+
+    def choose_background_color(self):
+        """Open QColorDialog to select custom preview chamber canvas background color."""
+        chosen = QtWidgets.QColorDialog.getColor(self.bg_color, self, "Select Preview Background Color")
+        if chosen.isValid():
+            self.bg_color = chosen
+            self.settings.setValue("/Graphics/preview_bg_color", chosen.name())
+            self.setBackgroundBrush(QtGui.QBrush(self.bg_color))
+            self.draw_me(force=True)
 
     def get_mouth_directory(self, mouth_name=None):
         """Get the filesystem directory path for a mouth set name."""
@@ -213,15 +232,19 @@ class MouthView(QtWidgets.QGraphicsView):
                     bitmap = self.mouths[first_m].get("rest")
 
                 # Background box & border
-                bg_pen = QtGui.QPen(QtGui.QColor(99, 102, 241) if (self.doc and self.doc.current_voice == voice) else QtGui.QColor(51, 65, 85))
-                self.scene().addRect(x_offset, y_offset, cell_w - 2, cell_h - 2, bg_pen, QtGui.QBrush(QtGui.QColor(15, 23, 42)))
+                is_light = self.bg_color.lightness() > 128
+                box_bg = QtGui.QColor(248, 250, 252) if is_light else QtGui.QColor(15, 23, 42)
+                box_border = QtGui.QColor(99, 102, 241) if (self.doc and self.doc.current_voice == voice) else (QtGui.QColor(203, 213, 225) if is_light else QtGui.QColor(51, 65, 85))
+                bg_pen = QtGui.QPen(box_border, 1.5)
+                self.scene().addRect(x_offset, y_offset, cell_w - 2, cell_h - 2, bg_pen, QtGui.QBrush(box_bg))
 
                 # Header banner
                 title_item = self.scene().addText(f"{voice.name} [{ph.upper()}]\n{angle_str}", QtGui.QFont("SansSerif", 8, QtGui.QFont.Bold))
-                title_item.setDefaultTextColor(QtGui.QColor(147, 197, 253))
+                title_color = QtGui.QColor(30, 41, 59) if is_light else QtGui.QColor(147, 197, 253)
+                title_item.setDefaultTextColor(title_color)
                 title_item.setPos(x_offset + 4, y_offset + 2)
 
-                # Mouth pixmap
+                # Mouth pixmap with aspect ratio preservation
                 if bitmap and not bitmap.isNull():
                     avail_w = max(30, cell_w - 14)
                     avail_h = max(30, cell_h - 38)
@@ -230,6 +253,7 @@ class MouthView(QtWidgets.QGraphicsView):
                     px_item.setPos(x_offset + (cell_w - scaled.width()) / 2, y_offset + 30 + (cell_h - 38 - scaled.height()) / 2)
 
             self.setSceneRect(0, 0, view_w, view_h)
+            self.fitInView(self.sceneRect(), QtCore.Qt.KeepAspectRatio)
             self._last_rendered_mouth = self.current_mouth
             return
 
@@ -272,16 +296,20 @@ class MouthView(QtWidgets.QGraphicsView):
             bitmap = self.mouths[first_mouth].get("rest")
 
         self.scene().clear()
-        target_w = self.sceneRect().width() or self.width() or 200
-        target_h = self.sceneRect().height() or self.height() or 200
+        target_w = self.viewport().width() if self.viewport() else (self.width() or 200)
+        target_h = self.viewport().height() if self.viewport() else (self.height() or 200)
+        target_w = max(100, target_w)
+        target_h = max(100, target_h)
+
         if bitmap and not bitmap.isNull():
             scaled_bitmap = bitmap.scaled(int(target_w), int(target_h), QtCore.Qt.KeepAspectRatio, QtCore.Qt.SmoothTransformation)
-            self.scene().addPixmap(scaled_bitmap)
+            px_item = self.scene().addPixmap(scaled_bitmap)
+            px_item.setPos((target_w - scaled_bitmap.width()) / 2, (target_h - scaled_bitmap.height()) / 2)
 
         dof_info = self.doc.get_dof_at_frame(self.cur_frame) if self.doc and hasattr(self.doc, "get_dof_at_frame") else None
         if dof_info:
             angle_tag = self.scene().addText(f"Angle: {dof_info.get('name', 'Front')}", QtGui.QFont("SansSerif", 9, QtGui.QFont.Bold))
-            angle_tag.setDefaultTextColor(QtGui.QColor(96, 165, 250))
+            angle_tag.setDefaultTextColor(QtGui.QColor(59, 130, 246) if self.bg_color.lightness() > 128 else QtGui.QColor(96, 165, 250))
             angle_tag.setPos(4, 2)
 
         if self.current_mouth in self.mouths and self.current_phoneme not in self.mouths[self.current_mouth]:
@@ -290,7 +318,8 @@ class MouthView(QtWidgets.QGraphicsView):
                 QtGui.QFont("Swiss", 14)
             )
 
-        self.fitInView(self.x(), self.y(), self.width(), self.height())
+        self.setSceneRect(0, 0, target_w, target_h)
+        self.fitInView(self.sceneRect(), QtCore.Qt.KeepAspectRatio)
         self._last_rendered_mouth = self.current_mouth
         self._last_rendered_phoneme = self.current_phoneme
 

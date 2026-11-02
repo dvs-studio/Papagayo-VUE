@@ -1,6 +1,6 @@
 {
-  "summary":  "Completed implementation fixing the clean-machine PySide6.QtWidgets.QAction launch crash, imported audio voice effector DSP normalizer, Preview menu with viseme set switcher, sample tutorial project files, bundled VC++ DLL discovery, and 90-day GitHub Actions artifact retention.",
-  "updatedAt":  "2026-10-30T15:24:33.723370285Z",
+  "summary":  "Updated implementation plan incorporating the exact Rhubarb v1.14.0 download URL (https://github.com/DanielSWolf/rhubarb-lip-sync/releases/download/v1.14.0/Rhubarb-Lip-Sync-1.14.0-Windows.zip) alongside macOS/Linux v1.14.0 fallbacks, the QTimer cross-thread crash resolution, Voice Recording / Microsoft TTS creation, continuous generation, audio range dubbing modifier, File menu items, timeline keyframe markers, and preview canvas auto-sizing with antialiasing and background selection.",
+  "updatedAt":  "2026-11-01T15:20:48.626568968Z",
   "requestFeedback":  true,
   "userFacing":  true
 }

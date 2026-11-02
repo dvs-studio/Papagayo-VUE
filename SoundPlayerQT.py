@@ -11,9 +11,11 @@ from utilities import *
 import time
 
 from utilities import which
-from cffi import FFI
-
-ffi = FFI()
+try:
+    from cffi import FFI
+    ffi = FFI()
+except ImportError:
+    ffi = None
 
 try:
     import numpy as np
@@ -89,8 +91,11 @@ class SoundPlayer:
                 tempdata = self.decoder.read()
                 # We use the Pointer Address to get a cffi Pointer to the data (hopefully)
                 cast_data = self.audioformat_to_datatype(tempdata.format())
-                possible_data = ffi.cast("{1}[{0}]".format(tempdata.sampleCount(), cast_data),
-                                         int(tempdata.constData()))
+                if ffi is not None:
+                    possible_data = ffi.cast("{1}[{0}]".format(tempdata.sampleCount(), cast_data),
+                                             int(tempdata.constData()))
+                else:
+                    possible_data = []
                 self.only_samples.extend(possible_data)
                 self.decoded_audio[self.decoder.position()] = [possible_data, len(possible_data), tempdata.byteCount(),
                                                                tempdata.format()]
@@ -153,18 +158,12 @@ class SoundPlayer:
     def play_segment(self, start, length):
         if not self.is_playing():  # otherwise this gets kinda echo-y
             self.isplaying = True
-            self.audio.setPosition(start * 1000.0)
+            self.audio.setPosition(int(start * 1000.0))
             self.audio.play()
-            thread.start_new_thread(self._wait_for_segment_end, (start, length))
+            from qt_compat import QtCore
+            QtCore.QTimer.singleShot(max(15, int(length * 1000.0)), self._on_segment_finished)
 
-    def _wait_for_segment_end(self, newstart, newlength):
-        start = newstart * 1000.0
-        length = newlength * 1000.0
-        end = start + length
-        while self.audio.position() < end:
-            if not self.isplaying:
-                return 0
-            QCoreApplication.processEvents()
-            time.sleep(0.001)
-        self.audio.stop()
-        self.isplaying = False
+    def _on_segment_finished(self):
+        if self.isplaying:
+            self.audio.stop()
+            self.isplaying = False

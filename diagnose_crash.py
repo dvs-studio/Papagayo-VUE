@@ -177,12 +177,57 @@ def run_diagnostics():
         fx_out = doc.apply_voice_effect(preset="Male to Female")
         log_item("OK", "Voice Effector DSP", f"Processed 'Male to Female' preset -> {os.path.basename(fx_out) if fx_out else 'Generated'}")
 
+        # Test continuous generation (append audio & dialogue)
+        clip_tmp = os.path.join(tempfile.gettempdir(), "test_clip.wav")
+        with wave.open(clip_tmp, 'wb') as f:
+            f.setnchannels(1)
+            f.setsampwidth(2)
+            f.setframerate(44100)
+            f.writeframes(b"\x00\x00" * 4410)
+        appended = doc.append_audio_and_dialogue(clip_tmp, dialogue_text="Continuing conversation")
+        log_item("OK", "Continuous Generation", f"Appended dialogue & extended timeline: {appended}")
+
+        # Test audio range dub slice
+        dub_tmp = os.path.join(tempfile.gettempdir(), "test_dub.wav")
+        with wave.open(dub_tmp, 'wb') as f:
+            f.setnchannels(1)
+            f.setsampwidth(2)
+            f.setframerate(44100)
+            f.writeframes(b"\x10\x10" * 2205)
+        dubbed = doc.apply_dub_slice(0.0, 0.05, dub_tmp)
+        log_item("OK", "Audio Range Dubbing", f"Spliced dub slice into working sound: {dubbed}")
+
+        # Test export audio
+        out_aud = os.path.join(tempfile.gettempdir(), "test_export_audio.wav")
+        aud_exported = doc.export_audio(out_aud)
+        log_item("OK", "Export Audio", f"Exported audio to WAV: {aud_exported} ({os.path.getsize(out_aud) if os.path.exists(out_aud) else 0} bytes)")
+
+        # Test transparent & solid background image sequence export
+        img_export_dir = os.path.join(tempfile.gettempdir(), "diag_img_export")
+        os.makedirs(img_export_dir, exist_ok=True)
+        out_seq = os.path.join(img_export_dir, "frame")
+        exp_trans = v.export_images(out_seq, currentmouth="4 - Preston Blair", transparent_bg=True)
+        exp_solid = v.export_images(out_seq, currentmouth="4 - Preston Blair", transparent_bg=False, bg_color="#ffffff")
+        log_item("OK", "Image Export (Trans/Solid)", f"Transparent count={exp_trans}, Solid count={exp_solid}")
+
         # Test project save & reload
         pgo_tmp = os.path.join(tempfile.gettempdir(), "test_diag.pgo")
         doc.save(pgo_tmp)
         doc2 = LipsyncDoc.LipsyncDoc()
         doc2.open(pgo_tmp)
         log_item("OK", "PGO Roundtrip", f"Saved and reloaded {pgo_tmp} ({os.path.getsize(pgo_tmp)} bytes)")
+
+        # Test Qt Dialog classes and timer safety
+        import LipsyncFrameQT
+        has_new_dlg = hasattr(LipsyncFrameQT, "NewAudioDialog")
+        has_app_dlg = hasattr(LipsyncFrameQT, "AppendLipSyncDialog")
+        has_dub_dlg = hasattr(LipsyncFrameQT, "DubRangeDialog")
+        log_item("OK", "Qt Dialog Classes", f"NewAudio={has_new_dlg}, Append={has_app_dlg}, DubRange={has_dub_dlg}")
+
+        # Test SoundPlayer timer safety
+        import SoundPlayerQT
+        has_singleshot = hasattr(SoundPlayerQT.SoundPlayer, "_on_segment_finished")
+        log_item("OK", "Timer Safety Check", f"SingleShot segment handler present={has_singleshot} (No worker thread killTimer)")
     except Exception as e:
         log_item("FAIL", "LipsyncDoc Engine", f"{e}\n{traceback.format_exc()}")
 

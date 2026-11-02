@@ -8,6 +8,7 @@ for audio and .pgo files, and bridges CLI and desktop execution to papagayo-ng.p
 
 import os
 import sys
+import time
 import json
 import wave
 import math
@@ -297,6 +298,29 @@ HTML_TEMPLATE = """
           <p class="text-[11px] text-gray-500">Supported: .PGO, .PG2, .WAV, .MP3, .OGG</p>
         </div>
 
+        <!-- Studio Audio Operations -->
+        <div class="pt-2 border-t border-gray-800 flex flex-col space-y-2">
+          <span class="text-xs font-semibold text-gray-300">Studio Audio Workstation</span>
+          <div class="grid grid-cols-2 gap-2">
+            <button onclick="openNewAudioModal()" class="px-2.5 py-1.5 text-xs font-medium rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white shadow transition flex items-center justify-center gap-1">
+              <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+              <span>+ New Audio</span>
+            </button>
+            <button onclick="openAppendModal()" class="px-2.5 py-1.5 text-xs font-medium rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white shadow transition flex items-center justify-center gap-1">
+              <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
+              <span>+ Continuous</span>
+            </button>
+          </div>
+          <div class="grid grid-cols-2 gap-2">
+            <button onclick="toggleRangeSelectMode()" id="btnWebRangeMode" class="px-2.5 py-1.5 text-xs font-medium rounded-lg bg-gray-800 hover:bg-gray-700 text-amber-400 border border-gray-700 transition flex items-center justify-center gap-1">
+              <span>Range Dub</span>
+            </button>
+            <button onclick="openExportAudioModal()" class="px-2.5 py-1.5 text-xs font-medium rounded-lg bg-gray-800 hover:bg-gray-700 text-gray-200 border border-gray-700 transition flex items-center justify-center gap-1">
+              <span>Export Audio</span>
+            </button>
+          </div>
+        </div>
+
         <!-- Sample Actions -->
         <div class="pt-2 border-t border-gray-800 flex flex-col space-y-2">
           <span class="text-xs font-medium text-gray-400">Quick Test Templates</span>
@@ -339,11 +363,21 @@ HTML_TEMPLATE = """
 
       <!-- Right Column (2 cols): Waveform & Timeline & Viseme View -->
       <div class="lg:col-span-2 bg-gray-900 border border-gray-800 rounded-xl p-5 flex flex-col space-y-4 shadow-sm">
-        <div class="flex items-center justify-between border-b border-gray-800 pb-3">
+        <div class="flex items-center justify-between border-b border-gray-800 pb-3 flex-wrap gap-2">
           <div class="flex items-center space-x-2">
             <h2 class="text-sm font-semibold text-gray-200 uppercase tracking-wider">Timeline &amp; Viseme Preview</h2>
           </div>
-          <div class="flex items-center space-x-3">
+          <div class="flex items-center space-x-3 flex-wrap gap-2">
+            <div class="flex items-center space-x-1">
+              <label class="text-xs text-gray-400">Preview BG:</label>
+              <input type="color" id="previewBgColorPicker" value="#ffffff" onchange="updatePreviewBgColor(this.value)" class="w-6 h-6 rounded border border-gray-600 cursor-pointer bg-white" title="Change lip-sync preview background color" />
+            </div>
+            <div class="flex items-center space-x-1">
+              <label class="text-xs text-gray-400 flex items-center gap-1 cursor-pointer">
+                <input type="checkbox" id="chkEnableKeyframesWeb" checked onchange="renderWaveform()" class="rounded bg-gray-800 border-gray-700 text-blue-500" />
+                <span>Diamond Keys</span>
+              </label>
+            </div>
             <div class="flex items-center space-x-1">
               <label class="text-xs text-gray-400">Layout:</label>
               <select id="previewModeSelect" onchange="setPreviewModeWeb(this.value)" class="bg-gray-800 border border-gray-700 text-xs rounded-lg px-2 py-1 text-gray-200">
@@ -368,12 +402,12 @@ HTML_TEMPLATE = """
 
         <!-- Viseme and Dialogue Header (Right-Click enabled chamber) -->
         <div class="grid grid-cols-1 md:grid-cols-4 gap-4 items-center bg-gray-950 p-4 rounded-xl border border-gray-800">
-          <div id="mouthChamber" oncontextmenu="showChamberContextMenu(event); return false;" class="flex flex-col items-center justify-center p-2 bg-gray-900 rounded-lg border border-gray-800 relative cursor-pointer" title="Right-click to switch chamber layout modes">
+          <div id="mouthChamber" oncontextmenu="showChamberContextMenu(event); return false;" style="background-color: #ffffff;" class="flex flex-col items-center justify-center p-2 rounded-lg border border-gray-300 relative cursor-pointer shadow-inner transition-colors duration-200" title="Right-click to switch chamber layout modes">
             <div id="mouthContainer" class="w-24 h-24 flex items-center justify-center overflow-hidden">
-              <img id="mouthImg" src="/assets/mouths/4 - Preston Blair/rest.jpg" class="max-w-full max-h-full object-contain" alt="Viseme">
+              <img id="mouthImg" src="/assets/mouths/4 - Preston Blair/rest.jpg" class="max-w-full max-h-full object-contain filter drop-shadow-sm" alt="Viseme">
             </div>
-            <span id="currentPhoneme" class="text-xs font-bold text-indigo-400 mt-1">REST</span>
-            <span id="currentAngleBadge" class="text-[10px] text-emerald-400 font-mono">Angle 5: Front</span>
+            <span id="currentPhoneme" class="text-xs font-bold text-slate-800 bg-white/90 px-1.5 py-0.5 rounded shadow mt-1">REST</span>
+            <span id="currentAngleBadge" class="text-[10px] text-slate-600 font-mono mt-0.5">Angle 5: Front</span>
           </div>
           <div class="md:col-span-3 space-y-2">
             <div class="flex justify-between items-center">
@@ -548,7 +582,11 @@ HTML_TEMPLATE = """
             </select>
           </div>
         </div>
-        <div class="flex flex-col space-y-1 pt-1 text-xs text-gray-300">
+        <div class="flex flex-col space-y-1.5 pt-1 text-xs text-gray-300">
+          <label class="flex items-center space-x-2 cursor-pointer">
+            <input id="exportTransparentBg" type="checkbox" checked class="rounded bg-gray-800 border-gray-700 text-cyan-600 focus:ring-0" />
+            <span>Transparent background for PNG (unchecked: composite over Preview BG)</span>
+          </label>
           <label class="flex items-center space-x-2 cursor-pointer">
             <input id="exportFallbackRest" type="checkbox" checked class="rounded bg-gray-800 border-gray-700 text-cyan-600 focus:ring-0" />
             <span>Fallback to 'rest' on missing phoneme (unchecked: hold previous)</span>
@@ -590,12 +628,185 @@ HTML_TEMPLATE = """
 Ready. Select an action or drop a .pgo project file to test verification.
       </div>
     </div>
+
+    <!-- Modal: New Audio (Voice Recording / Microsoft TTS) -->
+    <div id="newAudioModal" class="hidden fixed inset-0 z-50 bg-black/75 flex items-center justify-center p-4">
+      <div class="bg-gray-900 border border-gray-700 rounded-2xl max-w-lg w-full p-6 space-y-4 shadow-2xl">
+        <div class="flex items-center justify-between border-b border-gray-800 pb-3">
+          <h3 class="text-base font-semibold text-white flex items-center gap-2">
+            <svg class="w-5 h-5 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+            Start New Lip-Sync Project
+          </h3>
+          <button onclick="closeNewAudioModal()" class="text-gray-400 hover:text-white">&times;</button>
+        </div>
+        <div class="space-y-3 text-xs">
+          <div>
+            <label class="text-gray-300 block mb-1">Source Mode:</label>
+            <div class="grid grid-cols-2 gap-2">
+              <button type="button" id="btnModeTTS" onclick="setNewAudioMode('tts')" class="px-3 py-2 rounded-lg bg-emerald-600 text-white font-medium">Microsoft TTS</button>
+              <button type="button" id="btnModeRecord" onclick="setNewAudioMode('record')" class="px-3 py-2 rounded-lg bg-gray-800 text-gray-300 hover:bg-gray-700 font-medium">Voice Recording (Mic)</button>
+            </div>
+          </div>
+          <div id="newAudioTtsSection" class="space-y-2">
+            <div>
+              <label class="text-gray-300 block mb-1">Dialogue Text:</label>
+              <textarea id="modalNewAudioText" rows="2" class="w-full bg-gray-800 border border-gray-700 rounded-lg p-2 text-white text-xs">Hello, this is a brand new lip-sync project.</textarea>
+            </div>
+            <div>
+              <label class="text-gray-300 block mb-1">Voice Actor:</label>
+              <select id="modalNewAudioGender" class="w-full bg-gray-800 border border-gray-700 rounded-lg p-1.5 text-white text-xs">
+                <option value="female">Female (Natural)</option>
+                <option value="male">Male (Natural)</option>
+              </select>
+            </div>
+          </div>
+          <div id="newAudioRecordSection" class="space-y-2 hidden">
+            <p class="text-gray-400">Record clean audio directly into the workspace or trigger recording duration.</p>
+            <div class="flex items-center gap-2">
+              <label class="text-gray-300">Duration (seconds):</label>
+              <input id="modalRecordDuration" type="number" value="3.0" min="0.5" max="30.0" step="0.5" class="w-20 bg-gray-800 border border-gray-700 rounded p-1 text-white text-xs text-center"/>
+            </div>
+          </div>
+        </div>
+        <div class="flex justify-end gap-2 pt-2 border-t border-gray-800">
+          <button onclick="closeNewAudioModal()" class="px-3.5 py-1.5 rounded-lg text-xs bg-gray-800 hover:bg-gray-700 text-gray-300">Cancel</button>
+          <button onclick="submitNewAudioWeb()" class="px-4 py-1.5 rounded-lg text-xs font-semibold bg-emerald-600 hover:bg-emerald-500 text-white shadow">Create Project</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Modal: Continuous Generation (Append Lip-Sync) -->
+    <div id="appendModal" class="hidden fixed inset-0 z-50 bg-black/75 flex items-center justify-center p-4">
+      <div class="bg-gray-900 border border-gray-700 rounded-2xl max-w-lg w-full p-6 space-y-4 shadow-2xl">
+        <div class="flex items-center justify-between border-b border-gray-800 pb-3">
+          <h3 class="text-base font-semibold text-white flex items-center gap-2">
+            <svg class="w-5 h-5 text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
+            Continuous Generation (Append Dialogue)
+          </h3>
+          <button onclick="closeAppendModal()" class="text-gray-400 hover:text-white">&times;</button>
+        </div>
+        <p class="text-xs text-gray-400">Append new dialogue lines and audio sequentially to the timeline without breaking existing mouth timing or keyframe alignments.</p>
+        <div class="space-y-3 text-xs">
+          <div>
+            <label class="text-gray-300 block mb-1">New Dialogue Text:</label>
+            <textarea id="modalAppendText" rows="2" class="w-full bg-gray-800 border border-gray-700 rounded-lg p-2 text-white text-xs">And now we continue speaking without interrupting the previous phrase!</textarea>
+          </div>
+          <div class="grid grid-cols-2 gap-2">
+            <div>
+              <label class="text-gray-300 block mb-1">Voice Character:</label>
+              <input id="modalAppendVoiceName" type="text" value="Voice 1" class="w-full bg-gray-800 border border-gray-700 rounded-lg p-1.5 text-white text-xs"/>
+            </div>
+            <div>
+              <label class="text-gray-300 block mb-1">TTS Voice:</label>
+              <select id="modalAppendGender" class="w-full bg-gray-800 border border-gray-700 rounded-lg p-1.5 text-white text-xs">
+                <option value="female">Female</option>
+                <option value="male">Male</option>
+              </select>
+            </div>
+          </div>
+        </div>
+        <div class="flex justify-end gap-2 pt-2 border-t border-gray-800">
+          <button onclick="closeAppendModal()" class="px-3.5 py-1.5 rounded-lg text-xs bg-gray-800 hover:bg-gray-700 text-gray-300">Cancel</button>
+          <button onclick="submitAppendWeb()" class="px-4 py-1.5 rounded-lg text-xs font-semibold bg-indigo-600 hover:bg-indigo-500 text-white shadow">Append to Timeline</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Modal: Audio Range Dub & Voice Modifier -->
+    <div id="dubModal" class="hidden fixed inset-0 z-50 bg-black/75 flex items-center justify-center p-4">
+      <div class="bg-gray-900 border border-gray-700 rounded-2xl max-w-lg w-full p-6 space-y-4 shadow-2xl">
+        <div class="flex items-center justify-between border-b border-gray-800 pb-3">
+          <h3 class="text-base font-semibold text-white flex items-center gap-2">
+            <svg class="w-5 h-5 text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5.882V19.24a1.76 1.76 0 01-3.417.592l-2.147-6.15M18 13a3 3 0 100-6M5.436 13.683A4.001 4.001 0 017 6h1.832c4.1 0 7.625-1.234 9.168-3v14c-1.543-1.766-5.067-3-9.168-3H7a3.988 3.988 0 01-1.564-.317z"/></svg>
+            Audio Range Dubbing &amp; Voice Modifier
+          </h3>
+          <button onclick="closeDubModal()" class="text-gray-400 hover:text-white">&times;</button>
+        </div>
+        <div class="space-y-3 text-xs">
+          <div class="grid grid-cols-2 gap-2">
+            <div>
+              <label class="text-gray-300 block mb-1">Start Time (sec):</label>
+              <input id="modalDubStartSec" type="number" step="0.1" value="0.0" class="w-full bg-gray-800 border border-gray-700 rounded-lg p-1.5 text-white text-xs"/>
+            </div>
+            <div>
+              <label class="text-gray-300 block mb-1">End Time (sec):</label>
+              <input id="modalDubEndSec" type="number" step="0.1" value="1.0" class="w-full bg-gray-800 border border-gray-700 rounded-lg p-1.5 text-white text-xs"/>
+            </div>
+          </div>
+          <div>
+            <label class="text-gray-300 block mb-1">Effect Preset:</label>
+            <select id="modalDubPreset" class="w-full bg-gray-800 border border-gray-700 rounded-lg p-1.5 text-white text-xs">
+              <option value="Normal">Normal (Clean)</option>
+              <option value="Male to Female">Male to Female (+4.5 st)</option>
+              <option value="Female to Male">Female to Male (-4.5 st)</option>
+              <option value="Cartoon Chipmunk" selected>Cartoon Chipmunk (+8.0 st)</option>
+              <option value="Deep Narrator">Deep Narrator (-3.5 st)</option>
+              <option value="Robot / Vocoder">Robot / Vocoder</option>
+              <option value="Child">Child Voice (+5.5 st)</option>
+            </select>
+          </div>
+          <div class="grid grid-cols-2 gap-2">
+            <div>
+              <label class="text-gray-300 block mb-1">Pitch Offset (semitones):</label>
+              <input id="modalDubPitch" type="number" step="0.5" value="0.0" class="w-full bg-gray-800 border border-gray-700 rounded-lg p-1.5 text-white text-xs"/>
+            </div>
+            <div>
+              <label class="text-gray-300 block mb-1">Speed Multiplier:</label>
+              <input id="modalDubSpeed" type="number" step="0.05" value="1.0" class="w-full bg-gray-800 border border-gray-700 rounded-lg p-1.5 text-white text-xs"/>
+            </div>
+          </div>
+          <p class="text-[11px] text-gray-400">Processed audio is automatically backed up and rendered into a temporary buffer first before splicing.</p>
+        </div>
+        <div class="flex justify-end gap-2 pt-2 border-t border-gray-800">
+          <button onclick="closeDubModal()" class="px-3.5 py-1.5 rounded-lg text-xs bg-gray-800 hover:bg-gray-700 text-gray-300">Cancel</button>
+          <button onclick="submitDubRangeWeb()" class="px-4 py-1.5 rounded-lg text-xs font-semibold bg-amber-600 hover:bg-amber-500 text-white shadow">Apply Dub to Segment</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Modal: Export Audio -->
+    <div id="exportAudioModal" class="hidden fixed inset-0 z-50 bg-black/75 flex items-center justify-center p-4">
+      <div class="bg-gray-900 border border-gray-700 rounded-2xl max-w-sm w-full p-6 space-y-4 shadow-2xl">
+        <div class="flex items-center justify-between border-b border-gray-800 pb-3">
+          <h3 class="text-base font-semibold text-white flex items-center gap-2">
+            <svg class="w-5 h-5 text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
+            Export Project Audio
+          </h3>
+          <button onclick="closeExportAudioModal()" class="text-gray-400 hover:text-white">&times;</button>
+        </div>
+        <div class="space-y-3 text-xs">
+          <div>
+            <label class="text-gray-300 block mb-1">Audio Format:</label>
+            <select id="modalExportAudioFmt" class="w-full bg-gray-800 border border-gray-700 rounded-lg p-1.5 text-white text-xs">
+              <option value="wav">WAV Audio (*.wav) - Lossless</option>
+              <option value="mp3">MP3 Audio (*.mp3) - Compressed</option>
+            </select>
+          </div>
+          <div>
+            <label class="text-gray-300 block mb-1">Range:</label>
+            <select id="modalExportAudioRange" class="w-full bg-gray-800 border border-gray-700 rounded-lg p-1.5 text-white text-xs">
+              <option value="full">Entire Project Duration</option>
+              <option value="selected">Selected Dub Range</option>
+            </select>
+          </div>
+        </div>
+        <div class="flex justify-end gap-2 pt-2 border-t border-gray-800">
+          <button onclick="closeExportAudioModal()" class="px-3.5 py-1.5 rounded-lg text-xs bg-gray-800 hover:bg-gray-700 text-gray-300">Cancel</button>
+          <button onclick="submitExportAudioWeb()" class="px-4 py-1.5 rounded-lg text-xs font-semibold bg-indigo-600 hover:bg-indigo-500 text-white shadow">Download Audio</button>
+        </div>
+      </div>
+    </div>
   </main>
 
   <script>
     let activeAudio = null;
     let waveformSamples = [];
     let phonemeList = [];
+    let currentSoundPath = "";
+    let activeDurationSec = 1.0;
+    let rangeSelectMode = false;
+    let selectedStartSec = 0.0;
+    let selectedEndSec = 1.0;
 
     function log(msg) {
       const consoleBox = document.getElementById('consoleOutput');
@@ -674,6 +885,11 @@ Ready. Select an action or drop a .pgo project file to test verification.
       document.getElementById('metaFps').innerText = `${data.fps || 24} FPS`;
       document.getElementById('metaVoices').innerText = data.voices ? data.voices.length : 1;
       document.getElementById('metaSoundStatus').innerText = data.sound_valid ? 'Valid Audio' : 'No Audio';
+
+      currentSoundPath = data.sound_path || "";
+      activeDurationSec = parseFloat(data.duration_seconds) || 1.0;
+      selectedStartSec = 0.0;
+      selectedEndSec = Math.min(activeDurationSec, 1.0);
 
       if (data.text) {
         document.getElementById('dialogueText').innerText = data.text;
@@ -873,19 +1089,40 @@ Ready. Select an action or drop a .pgo project file to test verification.
       ctx.fill();
       ctx.stroke();
 
-      // Draw 9-DOF Keyframe markers on top edge
-      if (keyframeList && keyframeList.length > 0) {
-        keyframeList.forEach(kf => {
-          const kfX = (kf.frame / 24.0) * canvas.width;
-          ctx.fillStyle = waveStroke;
-          ctx.beginPath();
-          ctx.moveTo(kfX, 2);
-          ctx.lineTo(kfX + 5, 8);
-          ctx.lineTo(kfX, 14);
-          ctx.lineTo(kfX - 5, 8);
-          ctx.closePath();
-          ctx.fill();
-        });
+      // Draw diamond keyframe markers on top edge if enabled
+      const enableKeys = document.getElementById('chkEnableKeyframesWeb') ? document.getElementById('chkEnableKeyframesWeb').checked : true;
+      if (enableKeys) {
+        const markers = (typeof keyframeList !== 'undefined' && keyframeList && keyframeList.length > 0) ? keyframeList : phonemeList;
+        if (markers && markers.length > 0) {
+          const totalFrames = 24;
+          markers.forEach(kf => {
+            const f = kf.frame || 1;
+            const kfX = (f / totalFrames) * canvas.width;
+            ctx.fillStyle = '#38bdf8';
+            ctx.strokeStyle = '#0284c7';
+            ctx.lineWidth = 1;
+            ctx.beginPath();
+            ctx.moveTo(kfX, 2);
+            ctx.lineTo(kfX + 5, 8);
+            ctx.lineTo(kfX, 14);
+            ctx.lineTo(kfX - 5, 8);
+            ctx.closePath();
+            ctx.fill();
+            ctx.stroke();
+          });
+        }
+      }
+
+      // Draw range selection overlay if active
+      if (rangeSelectMode && activeDurationSec > 0) {
+        const startX = Math.max(0, (selectedStartSec / activeDurationSec) * canvas.width);
+        const endX = Math.min(canvas.width, (selectedEndSec / activeDurationSec) * canvas.width);
+        const selW = Math.max(4, endX - startX);
+        ctx.fillStyle = 'rgba(245, 158, 11, 0.28)';
+        ctx.fillRect(startX, 0, selW, canvas.height);
+        ctx.strokeStyle = '#f59e0b';
+        ctx.lineWidth = 2;
+        ctx.strokeRect(startX, 0, selW, canvas.height);
       }
     }
 
@@ -1098,6 +1335,9 @@ Ready. Select an action or drop a .pgo project file to test verification.
       const fallbackRest = document.getElementById('exportFallbackRest').checked;
       const includeAudio = document.getElementById('exportIncludeAudio').checked;
 
+      const transparentBg = document.getElementById('exportTransparentBg') ? document.getElementById('exportTransparentBg').checked : true;
+      const bgColor = document.getElementById('previewBgColorPicker') ? document.getElementById('previewBgColorPicker').value : '#ffffff';
+
       log(`Exporting ${fmt} image sequence [Mode: ${mode}] with base '${saveName}' using active mouth set '${activeMouth}'...`);
       try {
         const res = await fetch('/api/export-images', {
@@ -1110,12 +1350,14 @@ Ready. Select an action or drop a .pgo project file to test verification.
             mode: mode,
             fallback_to_rest: fallbackRest,
             include_audio: includeAudio,
+            transparent_bg: transparentBg,
+            bg_color: bgColor,
             phonemes: phonemeList.length > 0 ? phonemeList : undefined
           })
         });
         const data = await res.json();
         if (data.success) {
-          log(`✅ Exported ${data.exported_count} frames! Format: ${data.format} [${data.mode}]`);
+          log(`✅ Exported ${data.exported_count} frames! Format: ${data.format} [${data.mode}] (Transparent: ${data.transparent_bg})`);
           log(`  Active set: ${data.mouth_set}`);
           log(`  Sample filenames: ${JSON.stringify(data.filenames_sample)}`);
           showStatus(`Exported ${data.exported_count} frames (${data.format}) [${data.mode}] - DJV ready!`);
@@ -1132,6 +1374,216 @@ Ready. Select an action or drop a .pgo project file to test verification.
     }
     function stopAudio() {
       log('Audio stopped.');
+    }
+
+    // --- Studio Workstation Actions ---
+    function updatePreviewBgColor(color) {
+      const chamber = document.getElementById('mouthChamber');
+      if (chamber) {
+        chamber.style.backgroundColor = color;
+      }
+      try {
+        localStorage.setItem('papagayo_preview_bg', color);
+      } catch (e) {}
+    }
+
+    let currentNewAudioMode = 'tts';
+    function setNewAudioMode(mode) {
+      currentNewAudioMode = mode;
+      const btnTTS = document.getElementById('btnModeTTS');
+      const btnRec = document.getElementById('btnModeRecord');
+      const ttsSec = document.getElementById('newAudioTtsSection');
+      const recSec = document.getElementById('newAudioRecordSection');
+      if (mode === 'tts') {
+        btnTTS.className = 'px-3 py-2 rounded-lg bg-emerald-600 text-white font-medium';
+        btnRec.className = 'px-3 py-2 rounded-lg bg-gray-800 text-gray-300 hover:bg-gray-700 font-medium';
+        ttsSec.classList.remove('hidden');
+        recSec.classList.add('hidden');
+      } else {
+        btnRec.className = 'px-3 py-2 rounded-lg bg-emerald-600 text-white font-medium';
+        btnTTS.className = 'px-3 py-2 rounded-lg bg-gray-800 text-gray-300 hover:bg-gray-700 font-medium';
+        recSec.classList.remove('hidden');
+        ttsSec.classList.add('hidden');
+      }
+    }
+
+    function openNewAudioModal() {
+      document.getElementById('newAudioModal').classList.remove('hidden');
+    }
+    function closeNewAudioModal() {
+      document.getElementById('newAudioModal').classList.add('hidden');
+    }
+
+    async function submitNewAudioWeb() {
+      const text = document.getElementById('modalNewAudioText').value || '';
+      const gender = document.getElementById('modalNewAudioGender').value || 'female';
+      const dur = parseFloat(document.getElementById('modalRecordDuration').value) || 3.0;
+      closeNewAudioModal();
+      log(`Creating new project via ${currentNewAudioMode.toUpperCase()}...`);
+      showStatus(`Creating project via ${currentNewAudioMode.toUpperCase()}...`);
+      try {
+        const res = await fetch('/api/new-audio', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ mode: currentNewAudioMode, text: text, gender: gender, duration: dur })
+        });
+        const data = await res.json();
+        if (data.success) {
+          log(`✅ New project created: ${data.duration_seconds}s (${data.duration_frames} frames)`);
+          showStatus(`New lip-sync project created!`);
+          renderProjectData(data);
+        } else {
+          showStatus(`Failed to create project: ${data.error}`, true);
+        }
+      } catch (e) {
+        log(`New audio error: ${e.message}`);
+        showStatus(`New audio error: ${e.message}`, true);
+      }
+    }
+
+    function openAppendModal() {
+      document.getElementById('appendModal').classList.remove('hidden');
+    }
+    function closeAppendModal() {
+      document.getElementById('appendModal').classList.add('hidden');
+    }
+
+    async function submitAppendWeb() {
+      const text = document.getElementById('modalAppendText').value || '';
+      const voice = document.getElementById('modalAppendVoiceName').value || 'Voice 1';
+      const gender = document.getElementById('modalAppendGender').value || 'female';
+      closeAppendModal();
+      log(`Appending continuous dialogue: "${text}"...`);
+      showStatus('Appending continuous dialogue to timeline...');
+      try {
+        const res = await fetch('/api/append-dialogue', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ text: text, voice_name: voice, gender: gender, current_sound_path: currentSoundPath })
+        });
+        const data = await res.json();
+        if (data.success) {
+          log(`✅ Dialogue appended: timeline extended to ${data.duration_frames} frames!`);
+          showStatus('Appended continuous dialogue and extended timeline!');
+          renderProjectData(data);
+        } else {
+          showStatus(`Append failed: ${data.error}`, true);
+        }
+      } catch (e) {
+        log(`Append error: ${e.message}`);
+        showStatus(`Append error: ${e.message}`, true);
+      }
+    }
+
+    function toggleRangeSelectMode() {
+      rangeSelectMode = !rangeSelectMode;
+      const btn = document.getElementById('btnWebRangeMode');
+      if (btn) {
+        btn.className = rangeSelectMode 
+          ? 'px-2.5 py-1.5 text-xs font-bold rounded-lg bg-amber-500 text-black shadow flex items-center justify-center gap-1'
+          : 'px-2.5 py-1.5 text-xs font-medium rounded-lg bg-gray-800 hover:bg-gray-700 text-amber-400 border border-gray-700 transition flex items-center justify-center gap-1';
+      }
+      if (rangeSelectMode) {
+        showStatus('Range Select Mode ACTIVE: Drag or click waveform to dub segment.');
+        openDubModal();
+      } else {
+        showStatus('Range Select Mode deactivated.');
+      }
+      drawWaveform(waveformSamples);
+    }
+
+    function openDubModal() {
+      document.getElementById('modalDubStartSec').value = selectedStartSec.toFixed(2);
+      document.getElementById('modalDubEndSec').value = selectedEndSec.toFixed(2);
+      document.getElementById('dubModal').classList.remove('hidden');
+    }
+    function closeDubModal() {
+      document.getElementById('dubModal').classList.add('hidden');
+    }
+
+    async function submitDubRangeWeb() {
+      const s = parseFloat(document.getElementById('modalDubStartSec').value) || 0.0;
+      const e = parseFloat(document.getElementById('modalDubEndSec').value) || 1.0;
+      const preset = document.getElementById('modalDubPreset').value;
+      const pitch = parseFloat(document.getElementById('modalDubPitch').value) || 0.0;
+      const speed = parseFloat(document.getElementById('modalDubSpeed').value) || 1.0;
+      closeDubModal();
+      log(`Applying dub slice on range ${s}s–${e}s with preset '${preset}'...`);
+      showStatus(`Splicing dub into audio (${s}s–${e}s)...`);
+      try {
+        const res = await fetch('/api/dub-range', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            start_sec: s,
+            end_sec: e,
+            preset: preset,
+            pitch_semitones: pitch,
+            speed_multiplier: speed,
+            current_sound_path: currentSoundPath
+          })
+        });
+        const data = await res.json();
+        if (data.success) {
+          log(`✅ Dub successfully applied and saved to working audio!`);
+          showStatus(`Dub range spliced into audio!`);
+          if (data.waveform) {
+            waveformSamples = data.waveform;
+            drawWaveform(waveformSamples);
+          }
+        } else {
+          showStatus(`Dub failed: ${data.error}`, true);
+        }
+      } catch (err) {
+        log(`Dub error: ${err.message}`);
+        showStatus(`Dub error: ${err.message}`, true);
+      }
+    }
+
+    function openExportAudioModal() {
+      document.getElementById('exportAudioModal').classList.remove('hidden');
+    }
+    function closeExportAudioModal() {
+      document.getElementById('exportAudioModal').classList.add('hidden');
+    }
+
+    async function submitExportAudioWeb() {
+      const fmt = document.getElementById('modalExportAudioFmt').value || 'wav';
+      const rangeChoice = document.getElementById('modalExportAudioRange').value;
+      closeExportAudioModal();
+      log(`Exporting project audio as ${fmt.toUpperCase()}...`);
+      showStatus(`Exporting audio as ${fmt.toUpperCase()}...`);
+      try {
+        const payload = {
+          current_sound_path: currentSoundPath,
+          format: fmt
+        };
+        if (rangeChoice === 'selected') {
+          payload.start_sec = selectedStartSec;
+          payload.end_sec = selectedEndSec;
+        }
+        const res = await fetch('/api/export-audio', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+        const data = await res.json();
+        if (data.success && data.audio_base64) {
+          const a = document.createElement('a');
+          a.href = data.audio_base64;
+          a.download = data.filename || `project_audio.${fmt}`;
+          document.body.appendChild(a);
+          a.click();
+          document.body.removeChild(a);
+          log(`✅ Audio exported: ${data.filename} (${data.file_size} bytes)`);
+          showStatus(`Exported and downloaded audio: ${data.filename}!`);
+        } else {
+          showStatus(`Audio export failed: ${data.error || 'Unknown error'}`, true);
+        }
+      } catch (e) {
+        log(`Export audio error: ${e.message}`);
+        showStatus(`Export audio error: ${e.message}`, true);
+      }
     }
 
     // Theme Management System
@@ -1775,6 +2227,8 @@ class PapagayoRequestHandler(BaseHTTPRequestHandler):
             save_name = data.get("save_name", "dialogue")
             mode = data.get("mode", "single")
             include_audio = data.get("include_audio", True)
+            transparent_bg = data.get("transparent_bg", True)
+            bg_color = data.get("bg_color", "#ffffff")
 
             tmp_dir = tempfile.mkdtemp(prefix="papagayo_export_")
             doc = LipsyncDoc.LipsyncDoc()
@@ -1816,7 +2270,9 @@ class PapagayoRequestHandler(BaseHTTPRequestHandler):
                     fallback_to_rest=fallback_to_rest,
                     mode=mode,
                     include_audio=include_audio,
-                    fps=doc.fps
+                    fps=doc.fps,
+                    transparent_bg=transparent_bg,
+                    bg_color=bg_color
                 )
             else:
                 out_base = os.path.join(tmp_dir, save_name)
@@ -1825,7 +2281,9 @@ class PapagayoRequestHandler(BaseHTTPRequestHandler):
                     currentmouth=mouth_name,
                     format_choice=fmt,
                     fallback_to_rest=fallback_to_rest,
-                    fps=doc.fps
+                    fps=doc.fps,
+                    transparent_bg=transparent_bg,
+                    bg_color=bg_color
                 )
 
             all_files = []
@@ -1842,8 +2300,234 @@ class PapagayoRequestHandler(BaseHTTPRequestHandler):
                 "mouth_set": mouth_name,
                 "format": fmt,
                 "mode": mode,
+                "transparent_bg": transparent_bg,
                 "filenames_sample": all_files[:6] + (["..."] if len(all_files) > 6 else []),
                 "total_files": len(all_files)
+            })
+            return
+
+        if path == "/api/new-audio":
+            raw_body = self.rfile.read(content_len) if content_len > 0 else b"{}"
+            try:
+                data = json.loads(raw_body.decode('utf-8'))
+            except Exception:
+                data = {}
+            mode = data.get("mode", "tts")
+            text = data.get("text", "Hello, welcome to Papagayo-VUE.")
+            gender = data.get("gender", "female")
+            audio_base64 = data.get("audio_base64", None)
+
+            tmp_dir = os.path.join(tempfile.gettempdir(), "papagayo_new_audio")
+            os.makedirs(tmp_dir, exist_ok=True)
+            wav_path = os.path.join(tmp_dir, f"new_audio_{int(time.time())}.wav")
+
+            doc = LipsyncDoc.LipsyncDoc()
+            if mode == "record" and audio_base64:
+                import base64
+                if "," in audio_base64:
+                    audio_base64 = audio_base64.split(",", 1)[1]
+                raw_bytes = base64.b64decode(audio_base64)
+                with open(wav_path, "wb") as f:
+                    f.write(raw_bytes)
+                doc.open_audio(wav_path)
+            elif mode == "record":
+                rec = LipsyncDoc.record_microphone(duration_sec=float(data.get("duration", 3.0)), out_path=wav_path)
+                doc.open_audio(rec or wav_path)
+            else:
+                out_wav = doc.generate_tts_audio(text=text, gender=gender, language="English")
+                if out_wav and os.path.exists(out_wav):
+                    wav_path = out_wav
+                doc.open_audio(wav_path)
+
+            if len(doc.project_node.children) < 1:
+                v = LipsyncDoc.LipSyncObject(object_type='voice', name='Voice 1', parent=doc.project_node)
+            else:
+                v = doc.project_node.children[0]
+            v.text = text
+            if text:
+                phrase = LipsyncDoc.LipSyncObject(object_type='phrase', name='Phrase 1', parent=v)
+                phrase.text = text
+                phrase.start_frame = 1
+                phrase.end_frame = max(12, doc.soundDuration or 24)
+                phrase.auto_breakdown_dialogue()
+
+            samples = []
+            if doc.sound and doc.sound.IsValid():
+                dur = doc.sound.Duration()
+                step = dur / 100.0 if dur > 0 else 0.01
+                for i in range(100):
+                    amp = doc.sound.GetRMSAmplitude(i * step, step)
+                    samples.append(float(amp) / 32768.0)
+
+            phonemes = []
+            for voice in doc.project_node.children:
+                for phr in voice.children:
+                    for wrd in phr.children:
+                        for ph in wrd.children:
+                            phonemes.append({"frame": ph.start_frame, "phoneme": ph.text})
+
+            if not phonemes:
+                phonemes = [{"frame": 1, "phoneme": "rest"}]
+
+            res = {
+                "success": True,
+                "project_name": f"New Project ({mode.upper()})",
+                "sound_path": wav_path,
+                "sound_valid": True,
+                "duration_seconds": doc.sound.Duration() if doc.sound else 1.5,
+                "duration_frames": doc.soundDuration or 24,
+                "fps": doc.fps,
+                "text": text,
+                "voices": [voice.name for voice in doc.project_node.children],
+                "phonemes": phonemes,
+                "waveform": samples
+            }
+            self.send_json(res)
+            return
+
+        if path == "/api/append-dialogue":
+            raw_body = self.rfile.read(content_len) if content_len > 0 else b"{}"
+            try:
+                data = json.loads(raw_body.decode('utf-8'))
+            except Exception:
+                data = {}
+            text = data.get("text", "Appended line of dialogue.")
+            gender = data.get("gender", "female")
+            current_sound = data.get("current_sound_path", "")
+
+            if not current_sound or not os.path.exists(current_sound):
+                current_sound = os.path.join(tempfile.gettempdir(), f"base_audio_{int(time.time())}.wav")
+                create_sample_wav(current_sound, duration_sec=1.5)
+
+            doc = LipsyncDoc.LipsyncDoc()
+            doc.open_audio(current_sound)
+
+            tmp_new = os.path.join(tempfile.gettempdir(), f"append_clip_{int(time.time())}.wav")
+            synth_doc = LipsyncDoc.LipsyncDoc()
+            clip_path = synth_doc.generate_tts_audio(text=text, gender=gender, language="English")
+            if not clip_path or not os.path.exists(clip_path):
+                create_sample_wav(tmp_new, duration_sec=2.0)
+                clip_path = tmp_new
+
+            ok = doc.append_audio_and_dialogue(clip_path, dialogue_text=text)
+
+            samples = []
+            if doc.sound and doc.sound.IsValid():
+                dur = doc.sound.Duration()
+                step = dur / 100.0 if dur > 0 else 0.01
+                for i in range(100):
+                    amp = doc.sound.GetRMSAmplitude(i * step, step)
+                    samples.append(float(amp) / 32768.0)
+
+            phonemes = []
+            for voice in doc.project_node.children:
+                for phr in voice.children:
+                    for wrd in phr.children:
+                        for ph in wrd.children:
+                            phonemes.append({"frame": ph.start_frame, "phoneme": ph.text})
+
+            if not phonemes:
+                phonemes = [{"frame": 1, "phoneme": "rest"}]
+
+            res = {
+                "success": ok,
+                "project_name": "Continuous LipSync Project",
+                "sound_path": doc.soundPath,
+                "sound_valid": True,
+                "duration_seconds": doc.sound.Duration() if doc.sound else 3.0,
+                "duration_frames": doc.soundDuration,
+                "fps": doc.fps,
+                "text": text,
+                "voices": [voice.name for voice in doc.project_node.children],
+                "phonemes": phonemes,
+                "waveform": samples
+            }
+            self.send_json(res)
+            return
+
+        if path == "/api/dub-range":
+            raw_body = self.rfile.read(content_len) if content_len > 0 else b"{}"
+            try:
+                data = json.loads(raw_body.decode('utf-8'))
+            except Exception:
+                data = {}
+            start_sec = float(data.get("start_sec", 0.0))
+            end_sec = float(data.get("end_sec", 1.0))
+            preset = data.get("preset", "Cartoon Chipmunk")
+            pitch = float(data.get("pitch_semitones", 0.0))
+            speed = float(data.get("speed_multiplier", 1.0))
+            current_sound = data.get("current_sound_path", "")
+
+            if not current_sound or not os.path.exists(current_sound):
+                current_sound = os.path.join(tempfile.gettempdir(), f"base_audio_{int(time.time())}.wav")
+                create_sample_wav(current_sound, duration_sec=2.5)
+
+            doc = LipsyncDoc.LipsyncDoc()
+            doc.open_audio(current_sound)
+
+            tmp_slice = os.path.join(tempfile.gettempdir(), f"dub_slice_{int(time.time())}.wav")
+            slice_dur = max(0.2, end_sec - start_sec)
+            create_sample_wav(tmp_slice, duration_sec=slice_dur)
+            temp_doc = LipsyncDoc.LipsyncDoc()
+            temp_doc.open_audio(tmp_slice)
+            effected_path = temp_doc.apply_voice_effect(preset=preset, pitch_semitones=pitch, speed_multiplier=speed)
+
+            ok = doc.apply_dub_slice(start_sec, end_sec, effected_path or tmp_slice)
+
+            samples = []
+            if doc.sound and doc.sound.IsValid():
+                dur = doc.sound.Duration()
+                step = dur / 100.0 if dur > 0 else 0.01
+                for i in range(100):
+                    amp = doc.sound.GetRMSAmplitude(i * step, step)
+                    samples.append(float(amp) / 32768.0)
+
+            res = {
+                "success": ok,
+                "sound_path": doc.soundPath,
+                "start_sec": start_sec,
+                "end_sec": end_sec,
+                "preset": preset,
+                "duration_seconds": doc.sound.Duration() if doc.sound else 2.5,
+                "duration_frames": doc.soundDuration,
+                "waveform": samples
+            }
+            self.send_json(res)
+            return
+
+        if path == "/api/export-audio":
+            raw_body = self.rfile.read(content_len) if content_len > 0 else b"{}"
+            try:
+                data = json.loads(raw_body.decode('utf-8'))
+            except Exception:
+                data = {}
+            current_sound = data.get("current_sound_path", "")
+            fmt = data.get("format", "wav").lower()
+            start_sec = data.get("start_sec", None)
+            end_sec = data.get("end_sec", None)
+
+            if not current_sound or not os.path.exists(current_sound):
+                current_sound = os.path.join(tempfile.gettempdir(), f"export_base_{int(time.time())}.wav")
+                create_sample_wav(current_sound, duration_sec=2.0)
+
+            doc = LipsyncDoc.LipsyncDoc()
+            doc.open_audio(current_sound)
+
+            out_audio = os.path.join(tempfile.gettempdir(), f"project_export_{int(time.time())}.{fmt}")
+            ok = doc.export_audio(out_audio, start_sec=start_sec, end_sec=end_sec)
+
+            import base64
+            audio_b64 = ""
+            if ok and os.path.exists(out_audio):
+                with open(out_audio, "rb") as f:
+                    audio_b64 = base64.b64encode(f.read()).decode('utf-8')
+
+            self.send_json({
+                "success": ok,
+                "filename": os.path.basename(out_audio),
+                "format": fmt,
+                "audio_base64": f"data:audio/{fmt};base64,{audio_b64}" if audio_b64 else "",
+                "file_size": os.path.getsize(out_audio) if os.path.exists(out_audio) else 0
             })
             return
 

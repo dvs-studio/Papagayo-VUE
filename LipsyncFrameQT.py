@@ -197,6 +197,11 @@ class ExportImagesDialog(QtWidgets.QDialog):
         self.chk_fallback.setToolTip("Checked: Missing phonemes use 'rest'. Unchecked: Holds the previous valid phoneme.")
         opts_group.addWidget(self.chk_fallback)
 
+        self.chk_transparent = QtWidgets.QCheckBox("Transparent Background (Alpha Channel)")
+        self.chk_transparent.setChecked(True)
+        self.chk_transparent.setToolTip("Checked: Transparent PNG frames. Unchecked: Includes the selected preview background color.")
+        opts_group.addWidget(self.chk_transparent)
+
         self.chk_audio = QtWidgets.QCheckBox("Include companion audio file for DJV auto-detection (.wav)")
         self.chk_audio.setChecked(True)
         self.chk_audio.setToolTip("Copies base audio to matching stem <base>.wav so DJV Viewer auto-binds audio track.")
@@ -262,6 +267,9 @@ class ExportImagesDialog(QtWidgets.QDialog):
     def get_fallback_to_rest(self):
         return self.chk_fallback.isChecked()
 
+    def get_transparent_bg(self):
+        return self.chk_transparent.isChecked()
+
     def get_include_audio(self):
         return self.chk_audio.isChecked()
 
@@ -316,6 +324,364 @@ class TTSSynthesizeDialog(QtWidgets.QDialog):
 
     def get_gender(self):
         return self.combo_gender.currentText().lower()
+
+
+class NewAudioDialog(QtWidgets.QDialog):
+    def __init__(self, parent, doc=None):
+        super(NewAudioDialog, self).__init__(parent)
+        self.setWindowTitle("New Audio Lip-Sync Project (Mic Recording / Microsoft TTS)")
+        self.setMinimumWidth(500)
+        self.doc = doc
+        self.output_audio_path = None
+        self.dialogue_text = ""
+        self.is_recording = False
+
+        layout = QtWidgets.QVBoxLayout(self)
+        self.tabs = QtWidgets.QTabWidget()
+
+        # Tab 1: Microphone Voice Recording
+        tab_mic = QtWidgets.QWidget()
+        mic_layout = QtWidgets.QVBoxLayout(tab_mic)
+        mic_layout.addWidget(QtWidgets.QLabel("<b>1. Record Voice from Microphone:</b>"))
+
+        dur_box = QtWidgets.QHBoxLayout()
+        dur_box.addWidget(QtWidgets.QLabel("Recording Duration:"))
+        self.spin_dur = QtWidgets.QDoubleSpinBox()
+        self.spin_dur.setRange(1.0, 60.0)
+        self.spin_dur.setValue(4.0)
+        self.spin_dur.setSuffix(" sec")
+        dur_box.addWidget(self.spin_dur)
+        mic_layout.addLayout(dur_box)
+
+        rec_btn_box = QtWidgets.QHBoxLayout()
+        self.btn_rec = QtWidgets.QPushButton("● Record Microphone")
+        self.btn_rec.setStyleSheet("font-weight: bold; background-color: #dc2626; color: white; padding: 6px;")
+        self.btn_rec.clicked.connect(self.on_record_mic)
+        self.btn_play_rec = QtWidgets.QPushButton("▶ Play Preview")
+        self.btn_play_rec.setEnabled(False)
+        self.btn_play_rec.clicked.connect(self.on_preview_rec)
+        rec_btn_box.addWidget(self.btn_rec)
+        rec_btn_box.addWidget(self.btn_play_rec)
+        mic_layout.addLayout(rec_btn_box)
+
+        self.mic_status = QtWidgets.QLabel("Ready to record voice audio.")
+        self.mic_status.setStyleSheet("color: #64748b; font-size: 11px;")
+        mic_layout.addWidget(self.mic_status)
+
+        mic_layout.addWidget(QtWidgets.QLabel("Spoken Dialogue Words (for Phoneme Breakdown):"))
+        self.mic_text = QtWidgets.QPlainTextEdit()
+        self.mic_text.setPlaceholderText("Enter the words spoken in the recording...")
+        mic_layout.addWidget(self.mic_text)
+        self.tabs.addTab(tab_mic, "Microphone Recording")
+
+        # Tab 2: Microsoft TTS Synthesizer
+        tab_tts = QtWidgets.QWidget()
+        tts_layout = QtWidgets.QVBoxLayout(tab_tts)
+        tts_layout.addWidget(QtWidgets.QLabel("<b>2. Synthesize Audio via Microsoft TTS:</b>"))
+
+        tts_row = QtWidgets.QHBoxLayout()
+        tts_row.addWidget(QtWidgets.QLabel("Voice Style:"))
+        self.combo_gender = QtWidgets.QComboBox()
+        self.combo_gender.addItems(["Female", "Male", "Robot", "Narrator", "Cartoon Chipmunk"])
+        tts_row.addWidget(self.combo_gender)
+        tts_layout.addLayout(tts_row)
+
+        tts_layout.addWidget(QtWidgets.QLabel("Speech Script Text:"))
+        self.tts_text = QtWidgets.QPlainTextEdit()
+        self.tts_text.setPlainText("Hello and welcome to Papagayo-VUE animation studio.")
+        tts_layout.addWidget(self.tts_text)
+
+        tts_btn_box = QtWidgets.QHBoxLayout()
+        self.btn_synth = QtWidgets.QPushButton("Synthesize Speech")
+        self.btn_synth.setStyleSheet("font-weight: bold; background-color: #2563eb; color: white; padding: 6px;")
+        self.btn_synth.clicked.connect(self.on_synth_tts)
+        self.btn_play_tts = QtWidgets.QPushButton("▶ Play Preview")
+        self.btn_play_tts.setEnabled(False)
+        self.btn_play_tts.clicked.connect(self.on_preview_tts)
+        tts_btn_box.addWidget(self.btn_synth)
+        tts_btn_box.addWidget(self.btn_play_tts)
+        tts_layout.addLayout(tts_btn_box)
+
+        self.tts_status = QtWidgets.QLabel("Ready to synthesize.")
+        self.tts_status.setStyleSheet("color: #64748b; font-size: 11px;")
+        tts_layout.addWidget(self.tts_status)
+        self.tabs.addTab(tab_tts, "Microsoft TTS")
+
+        layout.addWidget(self.tabs)
+
+        btn_box = QtWidgets.QDialogButtonBox(QtWidgets.QDialogButtonBox.Ok | QtWidgets.QDialogButtonBox.Cancel)
+        btn_box.button(QtWidgets.QDialogButtonBox.Ok).setText("Create Lip-Sync Project")
+        btn_box.accepted.connect(self.on_accept)
+        btn_box.rejected.connect(self.reject)
+        layout.addWidget(btn_box)
+
+    def on_record_mic(self):
+        self.mic_status.setText("Recording microphone... Please speak now.")
+        QtWidgets.QApplication.processEvents()
+        dur = self.spin_dur.value()
+        try:
+            import tempfile, time, LipsyncDoc
+            tmp_path = os.path.join(tempfile.gettempdir(), f"rec_project_{int(time.time())}.wav")
+            if self.doc:
+                out = self.doc.record_microphone(duration_sec=dur, out_path=tmp_path)
+            else:
+                dummy_doc = LipsyncDoc.LipsyncDoc()
+                out = dummy_doc.record_microphone(duration_sec=dur, out_path=tmp_path)
+            if out and os.path.exists(out):
+                self.output_audio_path = out
+                self.btn_play_rec.setEnabled(True)
+                self.mic_status.setText(f"Recorded successfully ({dur:.1f}s)! Preview ready.")
+            else:
+                self.mic_status.setText("Recording failed. Check microphone permissions.")
+        except Exception as e:
+            self.mic_status.setText(f"Recording error: {e}")
+
+    def on_preview_rec(self):
+        if self.output_audio_path and os.path.exists(self.output_audio_path):
+            try:
+                import SoundPlayer
+                player = SoundPlayer.SoundPlayer(self.output_audio_path)
+                player.play()
+            except Exception:
+                pass
+
+    def on_synth_tts(self):
+        txt = self.tts_text.toPlainText().strip()
+        if not txt:
+            txt = "Hello and welcome to Papagayo-VUE animation studio."
+        gender = self.combo_gender.currentText().lower()
+        self.tts_status.setText("Synthesizing Microsoft TTS voice...")
+        QtWidgets.QApplication.processEvents()
+        try:
+            import tempfile, time, LipsyncDoc
+            tmp_path = os.path.join(tempfile.gettempdir(), f"tts_project_{int(time.time())}.wav")
+            doc = self.doc if self.doc else LipsyncDoc.LipsyncDoc()
+            out = doc.generate_tts_audio(text=txt, gender=gender, out_path=tmp_path)
+            if out and os.path.exists(out):
+                self.output_audio_path = out
+                self.btn_play_tts.setEnabled(True)
+                self.tts_status.setText("TTS Speech synthesized successfully! Preview ready.")
+            else:
+                self.tts_status.setText("Synthesis failed.")
+        except Exception as e:
+            self.tts_status.setText(f"TTS Error: {e}")
+
+    def on_preview_tts(self):
+        if self.output_audio_path and os.path.exists(self.output_audio_path):
+            try:
+                import SoundPlayer
+                player = SoundPlayer.SoundPlayer(self.output_audio_path)
+                player.play()
+            except Exception:
+                pass
+
+    def on_accept(self):
+        if self.tabs.currentIndex() == 0:
+            self.dialogue_text = self.mic_text.toPlainText().strip()
+            if not self.output_audio_path or not os.path.exists(self.output_audio_path):
+                self.on_record_mic()
+        else:
+            self.dialogue_text = self.tts_text.toPlainText().strip()
+            if not self.output_audio_path or not os.path.exists(self.output_audio_path):
+                self.on_synth_tts()
+
+        if self.output_audio_path and os.path.exists(self.output_audio_path):
+            self.accept()
+        else:
+            QtWidgets.QMessageBox.warning(self, "No Audio Generated", "Please record microphone or synthesize TTS speech first.")
+
+
+class AppendLipSyncDialog(QtWidgets.QDialog):
+    """Continuous Generation Dialog: append additional sentences, recordings, or audio files."""
+    def __init__(self, parent, doc=None):
+        super(AppendLipSyncDialog, self).__init__(parent)
+        self.setWindowTitle("Append Lip-Sync (Continuous Generation)")
+        self.setMinimumWidth(480)
+        self.doc = doc
+        self.audio_path = None
+        self.text_content = ""
+
+        layout = QtWidgets.QVBoxLayout(self)
+        layout.addWidget(QtWidgets.QLabel("<b>Append Lip-Sync & Dialogue to Timeline:</b>"))
+
+        self.mode_combo = QtWidgets.QComboBox()
+        self.mode_combo.addItems([
+            "Microsoft TTS Speech Synthesis",
+            "Record from Microphone",
+            "Import Audio File (.wav, .mp3)"
+        ])
+        layout.addWidget(self.mode_combo)
+
+        self.text_edit = QtWidgets.QPlainTextEdit()
+        self.text_edit.setPlaceholderText("Enter the dialogue sentence to append...")
+        layout.addWidget(self.text_edit)
+
+        self.file_row = QtWidgets.QHBoxLayout()
+        self.file_path_edit = QtWidgets.QLineEdit()
+        self.file_path_edit.setPlaceholderText("Select audio file to append...")
+        self.btn_browse = QtWidgets.QPushButton("Browse...")
+        self.btn_browse.clicked.connect(self.browse_audio)
+        self.file_row.addWidget(self.file_path_edit)
+        self.file_row.addWidget(self.btn_browse)
+        self.file_widget = QtWidgets.QWidget()
+        self.file_widget.setLayout(self.file_row)
+        self.file_widget.hide()
+        layout.addWidget(self.file_widget)
+
+        self.mode_combo.currentIndexChanged.connect(self.on_mode_change)
+
+        btn_box = QtWidgets.QDialogButtonBox(QtWidgets.QDialogButtonBox.Ok | QtWidgets.QDialogButtonBox.Cancel)
+        btn_box.button(QtWidgets.QDialogButtonBox.Ok).setText("Append to Project")
+        btn_box.accepted.connect(self.on_accept)
+        btn_box.rejected.connect(self.reject)
+        layout.addWidget(btn_box)
+
+    def on_mode_change(self, idx):
+        if idx == 2:
+            self.file_widget.show()
+        else:
+            self.file_widget.hide()
+
+    def browse_audio(self):
+        f, _ = QtWidgets.QFileDialog.getOpenFileName(self, "Select Audio to Append", "", "Audio Files (*.wav *.mp3 *.ogg);;All Files (*)")
+        if f:
+            self.file_path_edit.setText(f)
+
+    def on_accept(self):
+        mode = self.mode_combo.currentIndex()
+        txt = self.text_edit.toPlainText().strip()
+        self.text_content = txt
+        if mode == 0:
+            if not txt:
+                QtWidgets.QMessageBox.warning(self, "Missing Text", "Please enter script text to synthesize.")
+                return
+            tmp_path = os.path.join(tempfile.gettempdir(), f"append_tts_{int(time.time())}.wav")
+            out = self.doc.generate_tts_audio(text=txt, out_path=tmp_path)
+            self.audio_path = out
+        elif mode == 1:
+            tmp_path = os.path.join(tempfile.gettempdir(), f"append_mic_{int(time.time())}.wav")
+            out = self.doc.record_microphone(duration_sec=4.0, out_path=tmp_path)
+            self.audio_path = out
+        else:
+            self.audio_path = self.file_path_edit.text().strip()
+
+        if self.audio_path and os.path.exists(self.audio_path):
+            self.accept()
+        else:
+            QtWidgets.QMessageBox.warning(self, "Audio Missing", "Could not generate or find the audio to append.")
+
+
+class DubRangeDialog(QtWidgets.QDialog):
+    """Audio Range Dubbing & Voice Modifier Dialog: replaces audio in selected range with temp auto-save."""
+    def __init__(self, parent, doc, start_sec=0.0, end_sec=0.0):
+        super(DubRangeDialog, self).__init__(parent)
+        self.setWindowTitle("Dub / Voice Modifier on Selected Range")
+        self.setMinimumWidth(460)
+        self.doc = doc
+        self.start_sec = start_sec
+        self.end_sec = end_sec
+        self.temp_dub_path = None
+
+        layout = QtWidgets.QVBoxLayout(self)
+        dur = max(0.0, end_sec - start_sec)
+        lbl_info = QtWidgets.QLabel(f"<b>Selected Dubbing Range:</b> {start_sec:.2f}s – {end_sec:.2f}s (Duration: <b>{dur:.2f}s</b>)")
+        layout.addWidget(lbl_info)
+
+        self.combo_method = QtWidgets.QComboBox()
+        self.combo_method.addItems([
+            "Voice Effect Presets (Pitch Shift, Robot, Chipmunk)",
+            "Record Replacement Microphone Voice",
+            "Synthesize Replacement Microsoft TTS"
+        ])
+        layout.addWidget(self.combo_method)
+
+        # Effect controls container
+        self.grp_effect = QtWidgets.QGroupBox("Voice Effect Options")
+        eff_l = QtWidgets.QVBoxLayout(self.grp_effect)
+        self.combo_preset = QtWidgets.QComboBox()
+        self.combo_preset.addItems(["Robot / Vocoder", "Male to Female", "Female to Male", "Cartoon Chipmunk", "Deep Narrator", "Slow Motion"])
+        eff_l.addWidget(self.combo_preset)
+        layout.addWidget(self.grp_effect)
+
+        # TTS controls container
+        self.grp_tts = QtWidgets.QGroupBox("Replacement Dialogue")
+        tts_l = QtWidgets.QVBoxLayout(self.grp_tts)
+        self.edit_tts = QtWidgets.QLineEdit()
+        self.edit_tts.setPlaceholderText("Enter dialogue for this range...")
+        tts_l.addWidget(self.edit_tts)
+        self.grp_tts.hide()
+        layout.addWidget(self.grp_tts)
+
+        self.combo_method.currentIndexChanged.connect(self.on_method_change)
+
+        btn_action_box = QtWidgets.QHBoxLayout()
+        self.btn_gen_preview = QtWidgets.QPushButton("⚡ Generate & Preview Dub (Auto-Saved to Temp)")
+        self.btn_gen_preview.setStyleSheet("font-weight: bold; background-color: #2563eb; color: white; padding: 6px;")
+        self.btn_gen_preview.clicked.connect(self.generate_and_preview)
+        btn_action_box.addWidget(self.btn_gen_preview)
+        layout.addLayout(btn_action_box)
+
+        self.status_lbl = QtWidgets.QLabel("Click 'Generate & Preview' to process audio into temporary cache.")
+        self.status_lbl.setStyleSheet("color: #64748b; font-size: 11px;")
+        layout.addWidget(self.status_lbl)
+
+        btn_box = QtWidgets.QDialogButtonBox(QtWidgets.QDialogButtonBox.Ok | QtWidgets.QDialogButtonBox.Cancel)
+        btn_box.button(QtWidgets.QDialogButtonBox.Ok).setText("Apply Dub to Project")
+        btn_box.accepted.connect(self.on_accept)
+        btn_box.rejected.connect(self.reject)
+        layout.addWidget(btn_box)
+
+    def on_method_change(self, idx):
+        if idx == 0:
+            self.grp_effect.show()
+            self.grp_tts.hide()
+        elif idx == 1:
+            self.grp_effect.hide()
+            self.grp_tts.hide()
+        else:
+            self.grp_effect.hide()
+            self.grp_tts.show()
+
+    def generate_and_preview(self):
+        idx = self.combo_method.currentIndex()
+        dur = max(0.05, self.end_sec - self.start_sec)
+        tmp_dir = os.path.join(tempfile.gettempdir(), "papagayo_dub_temp")
+        os.makedirs(tmp_dir, exist_ok=True)
+        self.temp_dub_path = os.path.join(tmp_dir, f"dub_slice_{int(time.time())}.wav")
+
+        try:
+            if idx == 0:
+                # Extract slice and apply voice effect
+                slice_raw = os.path.join(tmp_dir, f"raw_slice_{int(time.time())}.wav")
+                self.doc.export_audio(slice_raw, start_sec=self.start_sec, end_sec=self.end_sec)
+                preset = self.combo_preset.currentText()
+                out = self.doc.apply_voice_effect(slice_raw, preset=preset, out_path=self.temp_dub_path)
+            elif idx == 1:
+                self.status_lbl.setText(f"Recording microphone for {dur:.1f}s...")
+                QtWidgets.QApplication.processEvents()
+                out = self.doc.record_microphone(duration_sec=dur, out_path=self.temp_dub_path)
+            else:
+                txt = self.edit_tts.text().strip() or "dubbed line"
+                out = self.doc.generate_tts_audio(text=txt, out_path=self.temp_dub_path)
+
+            if out and os.path.exists(out):
+                self.temp_dub_path = out
+                self.status_lbl.setText(f"Dub generated & auto-saved to temp: {os.path.basename(out)}")
+                import SoundPlayer
+                player = SoundPlayer.SoundPlayer(out)
+                player.play()
+            else:
+                self.status_lbl.setText("Generation notice: check sound device.")
+        except Exception as e:
+            self.status_lbl.setText(f"Error: {e}")
+
+    def on_accept(self):
+        if not self.temp_dub_path or not os.path.exists(self.temp_dub_path):
+            self.generate_and_preview()
+        if self.temp_dub_path and os.path.exists(self.temp_dub_path):
+            self.accept()
+        else:
+            QtWidgets.QMessageBox.warning(self, "No Dub Audio", "Please generate the dub audio before applying.")
 
 
 class VoiceEffectorDialog(QtWidgets.QDialog):
@@ -645,10 +1011,42 @@ class LipsyncFrame:
         self.preview_menu.addSeparator()
         self.mouth_set_menu = self.preview_menu.addMenu("Switch Viseme Mouth Set")
         self.populate_mouth_set_menu()
+        self.preview_menu.addSeparator()
+        self.act_bg_color = self.preview_menu.addAction("Preview Background Color...")
+        self.act_bg_color.triggered.connect(self.main_window.mouth_view.choose_background_color)
+
+        # Hook File Menu Items (New Audio, Append Lip-Sync, Export Audio)
+        file_menu = None
+        for act in self.main_window.menubar.actions():
+            if act.menu() and ("file" in act.text().lower() or act.menu().title().lower() == "file"):
+                file_menu = act.menu()
+                break
+        if not file_menu:
+            file_menu = self.main_window.menubar.findChild(QtWidgets.QMenu, "menu_File") or self.main_window.menubar.findChild(QtWidgets.QMenu, "menuFile")
+
+        if file_menu:
+            first_act = file_menu.actions()[0] if file_menu.actions() else None
+            act_new_aud = QtWidgets.QAction("New Audio (Voice / TTS)...", self.main_window)
+            act_new_aud.setShortcut(QtGui.QKeySequence("Ctrl+Shift+N"))
+            act_new_aud.triggered.connect(self.on_new_audio)
+            file_menu.insertAction(first_act, act_new_aud)
+
+            act_app_aud = QtWidgets.QAction("Append Lip-Sync (Continuous)...", self.main_window)
+            act_app_aud.setShortcut(QtGui.QKeySequence("Ctrl+Shift+A"))
+            act_app_aud.triggered.connect(self.on_append_lipsync)
+            file_menu.insertAction(first_act, act_app_aud)
+
+            file_menu.addSeparator()
+            act_exp_aud = QtWidgets.QAction("Export Audio (WAV/MP3)...", self.main_window)
+            act_exp_aud.setShortcut(QtGui.QKeySequence("Ctrl+Shift+E"))
+            act_exp_aud.triggered.connect(self.on_export_audio)
+            file_menu.addAction(act_exp_aud)
 
         self.change_stylesheet()
         self.cur_frame = 0
-        self.timer = None
+        self.play_timer = QtCore.QTimer(self.main_window)
+        self.play_timer.timeout.connect(self.on_play_tick)
+        self.timer = self.play_timer
         self.wv_height = 1
         self.old_height = self.wv_height
         self.zoom_factor = 1
@@ -665,7 +1063,34 @@ class LipsyncFrame:
         self.studio_toolbar.setMovable(False)
         self.main_window.addToolBar(QtCore.Qt.TopToolBarArea, self.studio_toolbar)
 
-        lbl_spd = QtWidgets.QLabel("  Lip-Sync Speed: ")
+        self.btn_new_audio = QtWidgets.QPushButton("+ New Audio")
+        self.btn_new_audio.setToolTip("Start new lip-sync project from microphone voice recording or Microsoft TTS")
+        self.btn_new_audio.setStyleSheet("font-weight: bold; background-color: #059669; color: #ffffff; padding: 4px 8px; border-radius: 4px;")
+        self.btn_new_audio.clicked.connect(self.on_new_audio)
+        self.studio_toolbar.addWidget(self.btn_new_audio)
+
+        self.btn_append_dialogue = QtWidgets.QPushButton("+ Append Lip-Sync")
+        self.btn_append_dialogue.setToolTip("Continuous Generation: append extra speech or audio to timeline")
+        self.btn_append_dialogue.setStyleSheet("font-weight: bold; background-color: #0891b2; color: #ffffff; padding: 4px 8px; border-radius: 4px;")
+        self.btn_append_dialogue.clicked.connect(self.on_append_lipsync)
+        self.studio_toolbar.addWidget(self.btn_append_dialogue)
+
+        self.studio_toolbar.addSeparator()
+
+        self.btn_dub_mode = QtWidgets.QPushButton("Range Select Mode")
+        self.btn_dub_mode.setCheckable(True)
+        self.btn_dub_mode.setToolTip("Click and drag on waveform to select a range to dub or modify")
+        self.btn_dub_mode.toggled.connect(self.on_toggle_dub_mode)
+        self.studio_toolbar.addWidget(self.btn_dub_mode)
+
+        self.btn_dub_action = QtWidgets.QPushButton("Dub Range...")
+        self.btn_dub_action.setToolTip("Dub or apply voice effector to selected timeline range (auto-saves to temp first)")
+        self.btn_dub_action.clicked.connect(self.on_dub_range_dialog)
+        self.studio_toolbar.addWidget(self.btn_dub_action)
+
+        self.studio_toolbar.addSeparator()
+
+        lbl_spd = QtWidgets.QLabel("  Speed: ")
         lbl_spd.setStyleSheet("font-weight: bold; color: #333333;")
         self.studio_toolbar.addWidget(lbl_spd)
 
@@ -684,17 +1109,23 @@ class LipsyncFrame:
 
         self.studio_toolbar.addSeparator()
 
-        self.btn_tts = QtWidgets.QPushButton("Microsoft TTS Synthesize")
+        self.btn_tts = QtWidgets.QPushButton("Microsoft TTS")
         self.btn_tts.setToolTip("Generate voice audio via Microsoft in-build TTS (Windows SAPI) with auto-breakdown fallback")
         self.btn_tts.clicked.connect(self.on_tts_synthesize)
         self.studio_toolbar.addWidget(self.btn_tts)
 
-        self.btn_effector = QtWidgets.QPushButton("Voice Dub / Effector")
+        self.btn_effector = QtWidgets.QPushButton("Voice Effector")
         self.btn_effector.setToolTip("Voice dub mixing and gender switching presets (Male->Female, Female->Male, Robot, Chipmunk, etc.)")
         self.btn_effector.clicked.connect(self.on_voice_effector)
         self.studio_toolbar.addWidget(self.btn_effector)
 
         self.studio_toolbar.addSeparator()
+
+        self.chk_keyframes = QtWidgets.QCheckBox("Enable Keyframes")
+        self.chk_keyframes.setChecked(True)
+        self.chk_keyframes.setToolTip("Toggle visual diamond keyframe markers on waveform ruler")
+        self.chk_keyframes.toggled.connect(self.on_toggle_keyframes)
+        self.studio_toolbar.addWidget(self.chk_keyframes)
 
         self.btn_add_keyframe = QtWidgets.QPushButton("+ Add Keyframe")
         self.btn_add_keyframe.setToolTip("Add 9-DOF angle keyframe at the current timeline playhead frame")
@@ -940,52 +1371,70 @@ class LipsyncFrame:
 
     def download_rhubarb(self, progress_callback):
         binary = "/rhubarb/rhubarb.exe"
-        release_url = ""
         if platform.system() == "Darwin":
             binary = "/rhubarb/rhubarb"
-        github_url = "https://api.github.com/repos/DanielSWolf/rhubarb-lip-sync/releases"
-        download_json = json.loads(urllib.request.urlopen(github_url).read())
-        for download in download_json[0]["assets"]:
-            if platform.system() == "Darwin":
-                if download["name"].endswith("-osx.zip"):
-                    release_url = download["browser_download_url"]
-            else:
-                if download["name"].endswith("-win32.zip"):
-                    release_url = download["browser_download_url"]
-        rhubarb_path = os.path.join(utilities.get_app_data_path(), binary)
+            release_url = "https://github.com/DanielSWolf/rhubarb-lip-sync/releases/download/v1.14.0/Rhubarb-Lip-Sync-1.14.0-macOS.zip"
+        elif platform.system() == "Linux":
+            binary = "/rhubarb/rhubarb"
+            release_url = "https://github.com/DanielSWolf/rhubarb-lip-sync/releases/download/v1.14.0/Rhubarb-Lip-Sync-1.14.0-Linux.zip"
+        else:
+            release_url = "https://github.com/DanielSWolf/rhubarb-lip-sync/releases/download/v1.14.0/Rhubarb-Lip-Sync-1.14.0-Windows.zip"
+
+        rhubarb_dir = os.path.join(utilities.get_app_data_path(), "rhubarb")
+        os.makedirs(utilities.get_app_data_path(), exist_ok=True)
 
         try:
-            with urllib.request.urlopen(release_url) as req:
-                length = req.getheader('content-length')
-                block_size = 1000000
-                if length:
-                    length = int(length)
-                    block_size = max(4096, length // 100)
+            req = urllib.request.Request(
+                release_url,
+                headers={"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) Papagayo-VUE/2026"}
+            )
+            with urllib.request.urlopen(req, timeout=30) as resp:
+                length = resp.getheader('content-length')
+                length = int(length) if length else 0
+                block_size = max(4096, length // 100) if length else 32768
                 buffer_all = io.BytesIO()
                 size = 0
                 while True:
-                    buffer_now = req.read(block_size)
+                    buffer_now = resp.read(block_size)
                     if not buffer_now:
                         break
                     buffer_all.write(buffer_now)
                     size += len(buffer_now)
-                    if length:
-                        percent = int((size / length) * 100)
-                        progress_callback.emit(percent)
-                if buffer_all:
+                    if length > 0:
+                        progress_callback.emit(min(100, int((size / length) * 100)))
+
+                if buffer_all.tell() > 0:
+                    buffer_all.seek(0)
                     rhubarb_zip = ZipFile(buffer_all)
-                    print(os.path.join(utilities.get_app_data_path(), "rhubarb"))
-                    print(rhubarb_zip.filelist)
-                    dirs = list(set([os.path.dirname(x) for x in rhubarb_zip.namelist()]))
-                    main_dir = os.path.dirname([os.path.split(x)[0] for x in dirs][0])
-                    if os.path.exists(os.path.join(utilities.get_app_data_path(), "rhubarb")):
-                        shutil.rmtree(os.path.join(utilities.get_app_data_path(), "rhubarb"))
-                    rhubarb_zip.extractall(os.path.join(utilities.get_app_data_path()))
-                    os.rename(os.path.join(utilities.get_app_data_path(), main_dir),
-                              os.path.join(utilities.get_app_data_path(), "rhubarb"))
-        except TimeoutError:
-            # Download Failed
-            pass
+                    if os.path.exists(rhubarb_dir):
+                        try:
+                            shutil.rmtree(rhubarb_dir)
+                        except Exception:
+                            pass
+                    os.makedirs(rhubarb_dir, exist_ok=True)
+                    rhubarb_zip.extractall(rhubarb_dir)
+
+                    # Normalize subfolder if zip wrapped inside an inner folder
+                    subitems = os.listdir(rhubarb_dir)
+                    if len(subitems) == 1 and os.path.isdir(os.path.join(rhubarb_dir, subitems[0])):
+                        inner = os.path.join(rhubarb_dir, subitems[0])
+                        for f in os.listdir(inner):
+                            shutil.move(os.path.join(inner, f), os.path.join(rhubarb_dir, f))
+                        try:
+                            os.rmdir(inner)
+                        except Exception:
+                            pass
+
+                    # Ensure executable permissions on POSIX
+                    target_exec = os.path.join(utilities.get_app_data_path(), binary.lstrip("/"))
+                    if os.path.exists(target_exec) and platform.system() != "Windows":
+                        try:
+                            os.chmod(target_exec, 0o755)
+                        except Exception:
+                            pass
+                    progress_callback.emit(100)
+        except Exception as e:
+            print(f"[download_rhubarb] Download notice: {e}")
         return
 
     def load_ui_widget(self, ui_filename, parent=None):
@@ -1379,6 +1828,89 @@ class LipsyncFrame:
             self.allo_select.setChecked(False)
         self.change_stylesheet()
 
+    def on_new_audio(self, event=None):
+        dlg = NewAudioDialog(self.main_window, self.doc)
+        if dlg.exec_() == QtWidgets.QDialog.Accepted and dlg.output_audio_path:
+            self.open(dlg.output_audio_path)
+            if dlg.dialogue_text and self.doc and self.doc.current_voice:
+                self.doc.current_voice.text = dlg.dialogue_text
+                try:
+                    self.main_window.text_edit.setPlainText(dlg.dialogue_text)
+                except Exception:
+                    pass
+                self.on_voice_breakdown()
+            self.main_window.statusbar.showMessage("New lip-sync project created from audio.", 5000)
+
+    def on_append_lipsync(self, event=None):
+        if not self.doc:
+            self.main_window.statusbar.showMessage("Please open or create a project first before appending.", 4000)
+            return
+        dlg = AppendLipSyncDialog(self.main_window, self.doc)
+        if dlg.exec_() == QtWidgets.QDialog.Accepted and dlg.audio_path:
+            success = self.doc.append_audio_and_dialogue(dlg.audio_path, dialogue_text=dlg.text_content)
+            if success:
+                self.main_window.statusbar.showMessage("Appended lip-sync dialogue and extended timeline.", 5000)
+            else:
+                self.main_window.statusbar.showMessage("Failed to append audio to project.", 5000)
+
+    def on_toggle_dub_mode(self, checked):
+        if hasattr(self.main_window, "waveform_view"):
+            self.main_window.waveform_view.range_select_mode = checked
+            if not checked:
+                self.main_window.waveform_view.clear_range_selection()
+            self.btn_dub_mode.setStyleSheet("background-color: #f59e0b; color: #000000; font-weight: bold;" if checked else "")
+            status_msg = "Range Select Mode ACTIVE: Click and drag on waveform to select a segment to dub." if checked else "Scrub Mode ACTIVE."
+            self.main_window.statusbar.showMessage(status_msg, 4000)
+
+    def on_dub_range_dialog(self, event=None):
+        if not self.doc:
+            self.main_window.statusbar.showMessage("No project audio loaded to dub.", 4000)
+            return
+        wfv = self.main_window.waveform_view
+        sf, ef = wfv.get_selected_range()
+        if sf is None or ef is None:
+            sf = getattr(self, "cur_frame", 0) or 0
+            ef = min(self.doc.soundDuration or (sf + 48), sf + int(self.doc.fps * 2))
+        s_sec = sf / float(self.doc.fps)
+        e_sec = ef / float(self.doc.fps)
+
+        dlg = DubRangeDialog(self.main_window, self.doc, start_sec=s_sec, end_sec=e_sec)
+        if dlg.exec_() == QtWidgets.QDialog.Accepted and dlg.temp_dub_path:
+            ok = self.doc.apply_dub_slice(s_sec, e_sec, dlg.temp_dub_path)
+            if ok:
+                wfv.clear_range_selection()
+                self.main_window.statusbar.showMessage(f"Dub applied to range {s_sec:.2f}s–{e_sec:.2f}s and saved to working audio.", 5000)
+            else:
+                self.main_window.statusbar.showMessage("Failed to splice dub audio into project.", 5000)
+
+    def on_toggle_keyframes(self, checked):
+        if hasattr(self.main_window, "waveform_view"):
+            self.main_window.waveform_view.enable_keyframes = checked
+            self.main_window.waveform_view.viewport().update()
+
+    def on_export_audio(self, event=None):
+        if not self.doc or not self.doc.soundPath:
+            self.main_window.statusbar.showMessage("No project audio loaded to export.", 4000)
+            return
+        wfv = self.main_window.waveform_view
+        sf, ef = wfv.get_selected_range()
+        s_sec = (sf / float(self.doc.fps)) if sf is not None else None
+        e_sec = (ef / float(self.doc.fps)) if ef is not None else None
+
+        default_name = os.path.splitext(os.path.basename(self.doc.soundPath))[0] + "_export.wav"
+        out_f, _ = QtWidgets.QFileDialog.getSaveFileName(
+            self.main_window,
+            "Export Project Audio",
+            default_name,
+            "Wave Audio (*.wav);;MP3 Audio (*.mp3);;All Files (*)"
+        )
+        if out_f:
+            ok = self.doc.export_audio(out_f, start_sec=s_sec, end_sec=e_sec)
+            if ok:
+                self.main_window.statusbar.showMessage(f"Exported audio to {os.path.basename(out_f)}", 5000)
+            else:
+                self.main_window.statusbar.showMessage("Audio export failed.", 5000)
+
     def on_play(self, event=None):
         if (self.doc is not None) and (self.doc.sound is not None):
             self.cur_frame = -1
@@ -1386,14 +1918,14 @@ class LipsyncFrame:
             self.main_window.action_stop.setEnabled(True)
             self.doc.sound.set_cur_time(0)
             self.doc.sound.play(False)
-            self.timer = QtCore.QTimer()
             if self.main_window.waveform_view.temp_play_marker:
                 self.main_window.waveform_view.temp_play_marker.setVisible(True)
-            self.timer.timeout.connect(self.on_play_tick)
-            # self.connect(self.timer, None, self.on_play_tick)
-            self.timer.start(250.0 / self.doc.fps)
+            if hasattr(self, 'play_timer'):
+                self.play_timer.start(int(max(10, 250.0 / self.doc.fps)))
 
     def on_stop(self, event=None):
+        if hasattr(self, 'play_timer') and self.play_timer.isActive():
+            self.play_timer.stop()
         if (self.doc is not None) and (self.doc.sound is not None):
             self.doc.sound.stop()
             self.doc.sound.set_cur_time(0)
@@ -1407,7 +1939,6 @@ class LipsyncFrame:
             self.main_window.waveform_view.horizontalScrollBar().setValue(
                 self.main_window.waveform_view.scroll_position)
             self.main_window.waveform_view.update()
-            QtCore.QCoreApplication.processEvents()
 
     def on_play_tick(self, event=None):
         if (self.doc is not None) and (self.doc.sound is not None):
@@ -1426,9 +1957,6 @@ class LipsyncFrame:
                     self.start_time = time.time()
             else:
                 self.on_stop()
-                if hasattr(self, 'timer') and self.timer is not None:
-                    self.timer.stop()
-                    del self.timer
 
     def change_volume(self, e):
         if self.doc and self.doc.sound:
@@ -1533,6 +2061,9 @@ class LipsyncFrame:
                     if hasattr(self.main_window.mouth_view, 'get_mouth_directory'):
                         mouth_dir = self.main_window.mouth_view.get_mouth_directory(active_set)
 
+                    transparent_bg = dlg.get_transparent_bg() if hasattr(dlg, "get_transparent_bg") else True
+                    bg_color = self.config.value("/Graphics/preview_bg_color", "#ffffff")
+
                     if mode in ("folders", "grid"):
                         export_dir = os.path.dirname(out_path) or "."
                         base_stem = os.path.splitext(os.path.basename(out_path))[0] or "shot"
@@ -1543,7 +2074,9 @@ class LipsyncFrame:
                             fallback_to_rest=fallback_rest,
                             mode=mode,
                             include_audio=inc_audio,
-                            fps=self.doc.fps
+                            fps=self.doc.fps,
+                            transparent_bg=transparent_bg,
+                            bg_color=bg_color
                         )
                         mode_label = "Multi-Actor Folders" if mode == "folders" else "Interaction Grid"
                         self.main_window.statusbar.showMessage(
@@ -1556,7 +2089,9 @@ class LipsyncFrame:
                             format_choice=fmt,
                             fallback_to_rest=fallback_rest,
                             fps=self.doc.fps,
-                            mouth_dir=mouth_dir
+                            mouth_dir=mouth_dir,
+                            transparent_bg=transparent_bg,
+                            bg_color=bg_color
                         )
                         self.main_window.statusbar.showMessage(
                             self.translator.translate("LipsyncFrame", f"Exported {count} frames ({fmt}) using '{active_set}'"), 5000

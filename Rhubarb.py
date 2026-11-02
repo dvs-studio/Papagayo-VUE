@@ -7,10 +7,19 @@ import utilities
 from qt_compat import QtWidgets, QProgressDialog, QCoreApplication
 import sys
 
-if sys.platform == "win32":
-    RHUBARB_PATH = os.path.join(utilities.get_app_data_path(), 'rhubarb/rhubarb.exe')
-else:
-    RHUBARB_PATH = os.path.join(utilities.get_app_data_path(), 'rhubarb/rhubarb')
+def get_rhubarb_path():
+    exe_name = 'rhubarb.exe' if sys.platform == "win32" else 'rhubarb'
+    candidates = [
+        os.path.join(utilities.get_app_data_path(), 'rhubarb', exe_name),
+        os.path.join(utilities.get_main_dir(), 'rhubarb', exe_name),
+        os.path.join(utilities.get_main_dir(), 'rsrc', 'rhubarb', exe_name),
+    ]
+    for c in candidates:
+        if os.path.isfile(c):
+            return c
+    return os.path.join(utilities.get_app_data_path(), 'rhubarb', exe_name)
+
+RHUBARB_PATH = get_rhubarb_path()
 
 
 def subprocess_args(include_stdout=True):
