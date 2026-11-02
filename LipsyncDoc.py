@@ -1681,22 +1681,42 @@ class LipsyncDoc:
             except Exception as ex:
                 print(f"[apply_voice_effect] FFmpeg error: {ex}, attempting pure Python fallback...")
 
-        # 2. Pure Python DSP Fallback if FFmpeg unavailable or failed
+        # 2. Pure Python / Pydub DSP Fallback if FFmpeg unavailable or failed
         if not ffmpeg_success:
             try:
-                with wave.open(self.soundPath, 'rb') as wf:
-                    channels = wf.getnchannels()
-                    sampwidth = wf.getsampwidth()
-                    framerate = wf.getframerate()
-                    nframes = wf.getnframes()
-                    raw_bytes = wf.readframes(nframes)
+                samples = None
+                framerate = 44100
 
-                num_samples = len(raw_bytes) // sampwidth
-                samples = list(struct.unpack(f'<{num_samples}h', raw_bytes)) if sampwidth == 2 else [b * 256 for b in raw_bytes]
+                # Try decoding via pydub first (handles MP3, OGG, FLAC, 24/32-bit float WAV)
+                try:
+                    from pydub import AudioSegment
+                    audio_seg = AudioSegment.from_file(self.soundPath)
+                    audio_seg = audio_seg.set_channels(1).set_sample_width(2).set_frame_rate(44100)
+                    raw_data = audio_seg.raw_data
+                    framerate = audio_seg.frame_rate
+                    num_samples = len(raw_data) // 2
+                    samples = list(struct.unpack(f'<{num_samples}h', raw_data))
+                except Exception:
+                    samples = None
 
-                if channels == 2:
-                    samples = [(samples[i] + samples[i + 1]) // 2 for i in range(0, len(samples), 2)]
-                    channels = 1
+                # Fallback to standard wave module (for uncompressed 16-bit WAV)
+                if samples is None:
+                    with wave.open(self.soundPath, 'rb') as wf:
+                        channels = wf.getnchannels()
+                        sampwidth = wf.getsampwidth()
+                        framerate = wf.getframerate()
+                        nframes = wf.getnframes()
+                        raw_bytes = wf.readframes(nframes)
+
+                    num_samples = len(raw_bytes) // sampwidth
+                    samples = list(struct.unpack(f'<{num_samples}h', raw_bytes)) if sampwidth == 2 else [b * 256 for b in raw_bytes]
+
+                    if channels == 2:
+                        samples = [(samples[i] + samples[i + 1]) // 2 for i in range(0, len(samples), 2)]
+                        channels = 1
+
+                if not samples:
+                    return None
 
                 pitch_ratio = 2.0 ** (effective_pitch / 12.0)
                 total_rate_multiplier = pitch_ratio * effective_speed
@@ -1707,6 +1727,13 @@ class LipsyncDoc:
                         t_sec = float(i) / framerate
                         mod = math.sin(2.0 * math.pi * carrier_freq * t_sec)
                         samples[i] = int(samples[i] * (0.6 + 0.4 * mod))
+
+                if is_narrator:
+                    # Apply bass boost and lower frequency presence
+                    prev = samples[0] if samples else 0
+                    for i in range(len(samples)):
+                        samples[i] = int(0.7 * samples[i] + 0.3 * prev)
+                        prev = samples[i]
 
                 if abs(total_rate_multiplier - 1.0) > 0.01:
                     new_len = max(1, int(round(len(samples) / total_rate_multiplier)))

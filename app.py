@@ -1298,6 +1298,10 @@ def create_sample_wav(filepath, duration_sec=1.5, sample_rate=44100):
 class PapagayoRequestHandler(BaseHTTPRequestHandler):
     protocol_version = "HTTP/1.1"
 
+    def address_string(self):
+        # Avoid reverse DNS lookup latency in container environments
+        return self.client_address[0] if self.client_address else "127.0.0.1"
+
     def log_message(self, format, *args):
         # Keep logs clean and concise
         sys.stderr.write(f"[HTTP] {self.address_string()} - {format % args}\n")
@@ -1879,14 +1883,45 @@ def main():
 
     port = 3000
     host = "0.0.0.0"
-    print(f"Starting Papagayo-VUE Web Studio (Victory Ukpong, 2026) on {host}:{port}...")
+    print(f"Starting Papagayo-VUE Web Studio (Victory Ukpong, 2026) on {host}:{port}...", flush=True)
+
+    import signal
     ThreadingHTTPServer.allow_reuse_address = True
-    server = ThreadingHTTPServer((host, port), PapagayoRequestHandler)
+    server = None
+    for attempt in range(10):
+        try:
+            server = ThreadingHTTPServer((host, port), PapagayoRequestHandler)
+            break
+        except OSError as e:
+            if attempt < 9:
+                print(f"[Port {port} busy] Waiting for socket release (attempt {attempt + 1}/10)...", flush=True)
+                time.sleep(1)
+            else:
+                print(f"[Fatal] Could not bind to {host}:{port}: {e}", flush=True)
+                raise e
+
+    def shutdown_handler(signum, frame):
+        print(f"\nReceived signal {signum}, shutting down web studio...", flush=True)
+        try:
+            server.shutdown()
+            server.server_close()
+        except Exception:
+            pass
+        sys.exit(0)
+
+    signal.signal(signal.SIGTERM, shutdown_handler)
+    signal.signal(signal.SIGINT, shutdown_handler)
+
     try:
+        print(f"Papagayo-VUE Web Studio ready at http://{host}:{port}/", flush=True)
         server.serve_forever()
-    except KeyboardInterrupt:
-        print("\nShutting down server...")
-        server.server_close()
+    except Exception as ex:
+        print(f"Server exception: {ex}", flush=True)
+    finally:
+        try:
+            server.server_close()
+        except Exception:
+            pass
 
 
 if __name__ == "__main__":

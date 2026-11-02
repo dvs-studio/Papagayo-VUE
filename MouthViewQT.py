@@ -47,7 +47,7 @@ class MouthView(QtWidgets.QGraphicsView):
         self.load_mouths()
 
     def contextMenuEvent(self, event):
-        """Right-click context menu to choose preview chamber view modes or revert."""
+        """Right-click context menu to choose preview chamber view modes, mouth sets, or revert."""
         menu = QtWidgets.QMenu(self)
         title_act = menu.addAction("Preview Chamber Layout")
         title_act.setEnabled(False)
@@ -69,7 +69,24 @@ class MouthView(QtWidgets.QGraphicsView):
         act_grid.setCheckable(True)
         act_grid.setChecked(self.view_mode == "grid_2x2")
 
-        action = menu.exec_(event.globalPos())
+        menu.addSeparator()
+        mouth_sub = menu.addMenu("Switch Viseme Mouth Set")
+        mouth_actions = {}
+        for m_name in sorted(self.mouths.keys()):
+            act_m = mouth_sub.addAction(m_name)
+            act_m.setCheckable(True)
+            act_m.setChecked(m_name == self.current_mouth)
+            mouth_actions[act_m] = m_name
+
+        action = None
+        if hasattr(menu, "exec"):
+            action = menu.exec(event.globalPos())
+        elif hasattr(menu, "exec_"):
+            action = menu.exec_(event.globalPos())
+
+        if not action:
+            return
+
         if action == act_auto:
             self.view_mode = "auto"
             self.draw_me(force=True)
@@ -82,6 +99,9 @@ class MouthView(QtWidgets.QGraphicsView):
         elif action == act_grid:
             self.view_mode = "grid_2x2"
             self.draw_me(force=True)
+        elif action in mouth_actions:
+            target_mouth = mouth_actions[action]
+            self.set_mouth(target_mouth)
 
     def get_mouth_directory(self, mouth_name=None):
         """Get the filesystem directory path for a mouth set name."""

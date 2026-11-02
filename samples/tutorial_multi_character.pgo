@@ -1,0 +1,28 @@
+lipsync version 1
+/app/applet/samples/sample_voice.wav
+24
+48
+2
+	Character A
+	
+	1
+		
+		0
+		0
+		1
+			 1 12 4
+				1 etc
+				4 E
+				8 L
+				11 O
+	Character B
+	
+	1
+		
+		0
+		0
+		1
+			 14 26 3
+				14 etc
+				18 AI
+				25 rest

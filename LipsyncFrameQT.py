@@ -31,7 +31,7 @@ import time
 from functools import partial
 from pprint import pprint
 
-from qt_compat import QFile, QObject, QtCore, QtGui, QtWidgets, uic
+from qt_compat import QFile, QObject, QtCore, QtGui, QtWidgets, uic, QAction
 
 import urllib.request
 import io
@@ -618,19 +618,34 @@ class LipsyncFrame:
 
         self.main_window.action_allo_download.triggered.connect(lambda: self.start_download(self.download_allosaurus_model))
         self.main_window.action_rhubarb_download.triggered.connect(lambda: self.start_download(self.download_rhubarb))
-        self.main_window.action_ffmpeg_download.triggered.connect(lambda: self.start_download(self.download_ffmpeg))
         if not utilities.ffmpeg_binaries_exists():
-            self.ffmpeg_action = QtWidgets.QAction("Download FFmpeg")
+            self.ffmpeg_action = QAction("Download FFmpeg", self.main_window)
             self.ffmpeg_action.triggered.connect(lambda: self.start_download(self.download_ffmpeg))
             self.main_window.menubar.addAction(self.ffmpeg_action)
         if not utilities.allosaurus_model_exists():
-            self.model_action = QtWidgets.QAction("Download AI Model")
+            self.model_action = QAction("Download AI Model", self.main_window)
             self.model_action.triggered.connect(lambda: self.start_download(self.download_allosaurus_model))
             self.main_window.menubar.addAction(self.model_action)
         if not utilities.rhubarb_binaries_exists():
-            self.rhubarb_action = QtWidgets.QAction("Download Rhubarb")
+            self.rhubarb_action = QAction("Download Rhubarb", self.main_window)
             self.rhubarb_action.triggered.connect(lambda: self.start_download(self.download_rhubarb))
             self.main_window.menubar.addAction(self.rhubarb_action)
+
+        # Dedicated Preview Chamber & Viseme Switch Menu
+        self.preview_menu = self.main_window.menubar.addMenu("Preview")
+        self.act_prev_auto = self.preview_menu.addAction("Auto Layout")
+        self.act_prev_single = self.preview_menu.addAction("Single View (Active Voice)")
+        self.act_prev_split = self.preview_menu.addAction("Side-by-Side Split View")
+        self.act_prev_grid = self.preview_menu.addAction("2x2 Grid View")
+        self.act_prev_auto.triggered.connect(lambda: self.set_preview_mode("auto"))
+        self.act_prev_single.triggered.connect(lambda: self.set_preview_mode("single"))
+        self.act_prev_split.triggered.connect(lambda: self.set_preview_mode("split"))
+        self.act_prev_grid.triggered.connect(lambda: self.set_preview_mode("grid_2x2"))
+
+        self.preview_menu.addSeparator()
+        self.mouth_set_menu = self.preview_menu.addMenu("Switch Viseme Mouth Set")
+        self.populate_mouth_set_menu()
+
         self.change_stylesheet()
         self.cur_frame = 0
         self.timer = None
@@ -757,6 +772,35 @@ class LipsyncFrame:
                 self.main_window.waveform_view.set_document(self.doc, True, True)
                 self.main_window.mouth_view.draw_me(force=True)
                 self.main_window.statusbar.showMessage(f"Voice effect '{preset}' applied successfully!", 5000)
+
+    def set_preview_mode(self, mode):
+        if hasattr(self.main_window, "mouth_view"):
+            self.main_window.mouth_view.view_mode = mode
+            self.main_window.mouth_view.draw_me(force=True)
+            mode_names = {"auto": "Auto Layout", "single": "Single View", "split": "Split View", "grid_2x2": "2x2 Grid"}
+            self.main_window.statusbar.showMessage(f"Preview Layout set to: {mode_names.get(mode, mode)}", 3000)
+
+    def populate_mouth_set_menu(self):
+        if not hasattr(self, "mouth_set_menu"):
+            return
+        self.mouth_set_menu.clear()
+        mouth_view = getattr(self.main_window, "mouth_view", None)
+        if not mouth_view or not hasattr(mouth_view, "mouths"):
+            return
+        for m_name in sorted(mouth_view.mouths.keys()):
+            act = self.mouth_set_menu.addAction(m_name)
+            act.setCheckable(True)
+            act.setChecked(m_name == mouth_view.current_mouth)
+            act.triggered.connect(partial(self.on_switch_mouth_from_menu, m_name))
+
+    def on_switch_mouth_from_menu(self, mouth_name):
+        idx = self.main_window.mouth_choice.findText(mouth_name)
+        if idx >= 0:
+            self.main_window.mouth_choice.setCurrentIndex(idx)
+        elif hasattr(self.main_window, "mouth_view"):
+            self.main_window.mouth_view.set_mouth(mouth_name)
+        self.populate_mouth_set_menu()
+        self.main_window.statusbar.showMessage(f"Viseme Mouth Set switched to: {mouth_name}", 3000)
 
     def change_stylesheet(self):
         style_file_path = self.config.value("qss_file_path", "")
@@ -1315,15 +1359,15 @@ class LipsyncFrame:
 
     def settings_closed(self):
         if not utilities.ffmpeg_binaries_exists():
-            self.ffmpeg_action = QtWidgets.QAction(self.translator.translate("LipsyncFrame", "Download FFmpeg"))
+            self.ffmpeg_action = QAction(self.translator.translate("LipsyncFrame", "Download FFmpeg"), self.main_window)
             self.ffmpeg_action.triggered.connect(lambda: self.start_download(self.download_ffmpeg))
             self.main_window.menubar.addAction(self.ffmpeg_action)
         if not utilities.allosaurus_model_exists():
-            self.model_action = QtWidgets.QAction(self.apptranslator.translate("LipsyncFrame", "Download AI Model"))
+            self.model_action = QAction(self.apptranslator.translate("LipsyncFrame", "Download AI Model"), self.main_window)
             self.model_action.triggered.connect(lambda: self.start_download(self.download_allosaurus_model))
             self.main_window.menubar.addAction(self.model_action)
         if not utilities.rhubarb_binaries_exists():
-            self.rhubarb_action = QtWidgets.QAction(self.apptranslator.translate("LipsyncFrame", "Download Rhubarb"))
+            self.rhubarb_action = QAction(self.apptranslator.translate("LipsyncFrame", "Download Rhubarb"), self.main_window)
             self.rhubarb_action.triggered.connect(lambda: self.start_download(self.download_rhubarb))
             self.main_window.menubar.addAction(self.rhubarb_action)
         self.main_window.waveform_view.set_document(self.doc, True, True)

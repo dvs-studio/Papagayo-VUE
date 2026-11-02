@@ -19,6 +19,7 @@ datas = [
     ('version_information.txt', '.'),
     ('about_markdown.html', '.'),
     ('gpl.txt', '.'),
+    ('samples', 'samples'),
 ]
 
 hidden_imports = [

@@ -70,7 +70,11 @@ def run_diagnostics():
         "rsrc/settings.ui",
         "rsrc/themes/dark_grey.qss",
         "rsrc/themes/light.qss",
-        "rsrc/themes/slate.qss"
+        "rsrc/themes/slate.qss",
+        "samples/sample_voice.wav",
+        "samples/tutorial_basic_lipsync.pgo",
+        "samples/tutorial_multi_character.pgo",
+        "samples/README_TUTORIAL.txt"
     ]
     for rel_path in key_files:
         full_p = os.path.join(BASE_DIR, rel_path)
@@ -97,6 +101,14 @@ def run_diagnostics():
         log_item("OK", "qt_compat Import", f"Backend: {getattr(qt_compat, 'QT_LIB', 'Unknown')}")
         log_item("OK", "Headless Flag", f"IS_HEADLESS = {getattr(qt_compat, 'IS_HEADLESS', False)}")
         
+        # Verify QAction on both QtWidgets and QtGui
+        has_widgets_qaction = hasattr(qt_compat.QtWidgets, "QAction")
+        has_gui_qaction = hasattr(qt_compat.QtGui, "QAction")
+        if has_widgets_qaction and has_gui_qaction:
+            log_item("OK", "QAction Compatibility", "QtWidgets.QAction & QtGui.QAction safely bound")
+        else:
+            log_item("FAIL", "QAction Compatibility", f"QtWidgets={has_widgets_qaction}, QtGui={has_gui_qaction}")
+
         # Test QApplication creation
         app_inst = qt_compat.QtWidgets.QApplication.instance()
         if not app_inst:

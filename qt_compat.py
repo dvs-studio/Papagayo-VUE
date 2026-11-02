@@ -31,6 +31,20 @@ try:
     from PySide6.QtUiTools import QUiLoader as uic
 
     try:
+        from PySide6.QtGui import QAction
+    except ImportError:
+        try:
+            from PySide6.QtWidgets import QAction
+        except ImportError:
+            QAction = None
+
+    if QAction:
+        if not hasattr(QtWidgets, "QAction"):
+            QtWidgets.QAction = QAction
+        if not hasattr(QtGui, "QAction"):
+            QtGui.QAction = QAction
+
+    try:
         from PySide6.QtMultimedia import QMediaPlayer, QAudioOutput
     except ImportError:
         QMediaPlayer = None
@@ -63,6 +77,20 @@ except ImportError:
             QGraphicsLineItem, QGraphicsPolygonItem, QGraphicsTextItem, QGraphicsPixmapItem
         )
         from PySide2.QtUiTools import QUiLoader as uic
+
+        try:
+            from PySide2.QtWidgets import QAction
+        except ImportError:
+            try:
+                from PySide2.QtGui import QAction
+            except ImportError:
+                QAction = None
+
+        if QAction:
+            if not hasattr(QtWidgets, "QAction"):
+                QtWidgets.QAction = QAction
+            if not hasattr(QtGui, "QAction"):
+                QtGui.QAction = QAction
 
         try:
             from PySide2.QtMultimedia import (
@@ -101,6 +129,22 @@ except ImportError:
         class QObject:
             def __init__(self, *args, **kwargs):
                 pass
+
+        class QAction(QObject):
+            def __init__(self, text="", parent=None):
+                super().__init__(parent)
+                self._text = text
+                self._checkable = False
+                self._checked = False
+                self.triggered = _Signal()
+            def text(self): return self._text
+            def setText(self, t): self._text = t
+            def setCheckable(self, b): self._checkable = b
+            def isCheckable(self): return self._checkable
+            def setChecked(self, b): self._checked = b
+            def isChecked(self): return self._checked
+            def setEnabled(self, b): pass
+            def isEnabled(self): return True
 
         class _Qt:
             AlignLeft = 1
@@ -347,6 +391,27 @@ except ImportError:
 
         QtCore = _QtCore()
 
+        class QMenu(_DummyWidget):
+            def __init__(self, *args, **kwargs):
+                super().__init__(*args, **kwargs)
+                self.actions = []
+            def addAction(self, text_or_action):
+                if isinstance(text_or_action, str):
+                    act = QAction(text_or_action)
+                else:
+                    act = text_or_action
+                self.actions.append(act)
+                return act
+            def addSeparator(self):
+                pass
+            def addMenu(self, menu_or_title):
+                if isinstance(menu_or_title, str):
+                    m = QMenu(menu_or_title)
+                    return m
+                return menu_or_title
+            def exec_(self, pos=None): return None
+            def exec(self, pos=None): return None
+
         class _QtGui:
             QPixmap = QPixmap
             QIcon = QIcon
@@ -357,6 +422,7 @@ except ImportError:
             QDesktopServices = QDesktopServices
             QTransform = QTransform
             QBrush = QBrush
+            QAction = QAction
             class QImageReader:
                 @staticmethod
                 def supportedImageFormats(): return [b"png", b"jpg", b"bmp"]
@@ -388,8 +454,17 @@ except ImportError:
             QGraphicsPolygonItem = QGraphicsPolygonItem
             QGraphicsTextItem = QGraphicsTextItem
             QGraphicsPixmapItem = QGraphicsPixmapItem
+            QAction = QAction
+            QMenu = QMenu
 
         QtWidgets = _QtWidgets()
+
+# Universal top-level exports
+QAction = getattr(QtWidgets, "QAction", getattr(QtGui, "QAction", None))
+if not hasattr(QtWidgets, "QAction") and QAction:
+    QtWidgets.QAction = QAction
+if not hasattr(QtGui, "QAction") and QAction:
+    QtGui.QAction = QAction
 
 
 def exec_app(app_instance):

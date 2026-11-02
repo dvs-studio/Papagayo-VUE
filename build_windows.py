@@ -102,7 +102,7 @@ def main():
         sys.exit(1)
 
     # Copy required runtime folders & files
-    for folder in ["rsrc", "phonemes", "breakdowns"]:
+    for folder in ["rsrc", "phonemes", "breakdowns", "samples"]:
         if os.path.exists(folder):
             shutil.copytree(folder, os.path.join(release_dir, folder), dirs_exist_ok=True)
             print(f"  Bundled folder: {folder}")
@@ -110,6 +110,66 @@ def main():
     for doc_file in ["readme.md", "gpl.txt", "about_markdown.html", "ipa_cmu.json", "version_information.txt", "diagnose_crash.py"]:
         if os.path.exists(doc_file):
             shutil.copy2(doc_file, release_dir)
+
+    # Copy Microsoft Visual C++ runtime DLLs if available
+    vc_dll_names = [
+        "vcruntime140.dll", "vcruntime140_1.dll", "msvcp140.dll", "msvcp140_1.dll",
+        "msvcp140_2.dll", "vcomp140.dll"
+    ]
+    search_dirs = [
+        os.path.dirname(sys.executable),
+        os.path.join(os.path.dirname(sys.executable), "DLLs"),
+        os.path.join(os.path.dirname(sys.executable), "Library", "bin"),
+        os.path.join(os.environ.get("WINDIR", r"C:\Windows"), "System32"),
+        dist_dir
+    ]
+    bundled_dlls = []
+    for dll in vc_dll_names:
+        for sdir in search_dirs:
+            p = os.path.join(sdir, dll)
+            if os.path.isfile(p):
+                dest_p = os.path.join(release_dir, dll)
+                if not os.path.exists(dest_p):
+                    try:
+                        shutil.copy2(p, dest_p)
+                        bundled_dlls.append(dll)
+                        break
+                    except Exception:
+                        pass
+    if bundled_dlls:
+        print(f"  [OK] Bundled VC++ Runtime DLLs: {', '.join(bundled_dlls)}")
+
+    # Create convenient launcher batch scripts for Windows users
+    debug_bat_content = """@echo off
+title Papagayo-VUE Debug Console Launcher (Victory Ukpong, 2026)
+echo =============================================================
+echo   Papagayo-VUE Diagnostic & Console Launcher
+echo   Redeveloped by Victory Ukpong (2026)
+echo =============================================================
+echo.
+echo Launching Papagayo-VUE with active CMD terminal...
+echo If any issue occurs, full tracebacks will stay visible below.
+echo.
+if exist "Papagayo-VUE_debug.exe" (
+    "Papagayo-VUE_debug.exe" --debug %*
+) else if exist "Papagayo-VUE.exe" (
+    "Papagayo-VUE.exe" --debug %*
+) else (
+    echo [ERROR] No executable found in this folder.
+)
+echo.
+echo =============================================================
+echo Session ended. Press any key to close this terminal window.
+pause
+"""
+    with open(os.path.join(release_dir, "run_papagayo_debug.bat"), "w", encoding="utf-8") as f:
+        f.write(debug_bat_content)
+
+    win_bat_content = """@echo off
+start "" "%~dp0Papagayo-VUE.exe" %*
+"""
+    with open(os.path.join(release_dir, "run_papagayo_windowed.bat"), "w", encoding="utf-8") as f:
+        f.write(win_bat_content)
 
     # 5. Create ZIP distribution
     print("[5/5] Creating release zip...")
