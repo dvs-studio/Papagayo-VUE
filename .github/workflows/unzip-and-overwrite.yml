@@ -1,0 +1,45 @@
+name: Auto Unzip and Overwrite
+
+on:
+  push:
+    paths:
+      - 'repository.zip' # Triggers only when repository.zip is pushed or uploaded
+
+jobs:
+  extract:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write # Grants permission to commit the extracted files back to the repo
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Verify and Extract repository.zip
+        run: |
+          if [ ! -f "repository.zip" ]; then
+            echo "Error: repository.zip not found in the root directory."
+            exit 1
+          fi
+          
+          echo "Extracting repository.zip and overwriting existing files..."
+          # -o forces an overwrite of matching files/folders without prompting
+          unzip -o repository.zip -d ./
+          
+          echo "Extraction complete. Deleting repository.zip..."
+          rm repository.zip
+
+      - name: Commit and Push Clean Folder Structure
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "41898282+github-actions[bot]@://github.com"
+          
+          # Add all extracted files and stage the deletion of repository.zip
+          git add -A
+          
+          if git diff --staged --quiet; then
+            echo "No structural differences found between the ZIP and the repository."
+          else
+            git commit -m "Auto-extracted repository.zip and overwrote folder structure"
+            git push
+          fi
